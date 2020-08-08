@@ -1,0 +1,1 @@
+pub const ALLOWED_EXTENSIONS: [&'static str; 2] = ["graphql", "gql"];

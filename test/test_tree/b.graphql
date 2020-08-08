@@ -1,0 +1,5 @@
+type User {
+  "The user's URN"
+  urn: URN!
+  foo: BAR
+}
