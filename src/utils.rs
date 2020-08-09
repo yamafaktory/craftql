@@ -1,14 +1,17 @@
 use crate::config::ALLOWED_EXTENSIONS;
-use crate::state::Data;
+use crate::state::{Data, Node};
 
 use anyhow::Result;
 use async_std::{
     fs,
+    future::Future,
     path::Path,
+    pin::Pin,
     prelude::*,
     sync::{Arc, Mutex},
 };
-use std::{future::Future, pin::Pin};
+use graphql_parser::{parse_schema, schema};
+use petgraph::dot::Dot;
 
 fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
@@ -66,24 +69,42 @@ pub fn get_files(
     })
 }
 
-// TODO:
-// use graphql_parser::parse_schema;
-//     let ast = parse_schema::<String>(
-//         r#"
-//     type User {
-//         "The user's URN"
-//         urn: URN!
-//         foo: BAR
-//     }
-// "#,
-//     );
-//     ast.map(|node| {
-//         if let t = Some(node) {
-//             match t {
-//                 Some(t) => {
-//                     dbg!(t.definitions);
-//                 }
-//                 None => {}
-//             };
-//         }
-//     });
+pub async fn foo(shared_data: Arc<Mutex<Data>>) -> Result<()> {
+    let mut data = shared_data.lock().await;
+
+    for (file, contents) in &data.files {
+        let ast = parse_schema::<String>(contents.as_str())?;
+
+        for definition in ast.definitions {
+            match definition {
+                schema::Definition::TypeDefinition(t) => match t {
+                    schema::TypeDefinition::Scalar(t) => {}
+                    schema::TypeDefinition::Object(t) => {
+                        // dbg!(&t);
+                        // &data.graph.add_node(Node {
+                        //     id: String::from("TODO"),
+                        //     todo: (),
+                        // });
+                        t.fields
+                            .iter()
+                            .map(|field| {
+                                dbg!(&field);
+                            })
+                            .collect::<()>();
+                    }
+                    schema::TypeDefinition::Interface(t) => {}
+                    schema::TypeDefinition::Union(t) => {}
+                    schema::TypeDefinition::Enum(t) => {}
+                    schema::TypeDefinition::InputObject(t) => {}
+                },
+                schema::Definition::SchemaDefinition(t) => {}
+                schema::Definition::DirectiveDefinition(t) => {}
+                schema::Definition::TypeExtension(t) => {}
+            }
+        }
+    }
+
+    println!("{:?}", Dot::new(&data.graph));
+
+    Ok(())
+}

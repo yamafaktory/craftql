@@ -1,14 +1,30 @@
 use async_std::sync::{Arc, Mutex};
-use std::collections::HashMap;
+use petgraph::Graph;
+use std::{collections::HashMap, fmt};
 
 #[derive(Debug)]
 pub struct State {
     pub shared: Arc<Mutex<Data>>,
 }
 
+pub struct Node<N> {
+    pub id: String,
+    pub todo: N,
+}
+
+impl<N> fmt::Debug for Node<N>
+where
+    N: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {:?}", self.id, self.todo)
+    }
+}
+
 #[derive(Debug)]
-pub struct Data {
+pub struct Data<N = (), E = ()> {
     pub files: HashMap<String, String>,
+    pub graph: petgraph::Graph<Node<N>, E>,
 }
 
 impl State {
@@ -16,6 +32,7 @@ impl State {
         State {
             shared: Arc::new(Mutex::new(Data {
                 files: HashMap::new(),
+                graph: Graph::<Node<()>, ()>::new(),
             })),
         }
     }
