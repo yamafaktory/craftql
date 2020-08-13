@@ -1,5 +1,4 @@
 type User {
-  "The user's URN"
-  urn: URN!
-  foo: BAR
+  "The user's id"
+  urn: ID!
 }

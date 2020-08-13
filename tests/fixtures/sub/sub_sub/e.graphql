@@ -1,1 +1,3 @@
-# Nothing to see!
+type Bar {
+  id: ID!
+}

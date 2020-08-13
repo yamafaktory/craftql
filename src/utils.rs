@@ -71,8 +71,9 @@ pub fn get_files(
 
 pub async fn foo(shared_data: Arc<Mutex<Data>>) -> Result<()> {
     let mut data = shared_data.lock().await;
+    let files = &data.files.clone();
 
-    for (file, contents) in &data.files {
+    for (file, contents) in files {
         let ast = parse_schema::<String>(contents.as_str())?;
 
         for definition in ast.definitions {
@@ -80,15 +81,20 @@ pub async fn foo(shared_data: Arc<Mutex<Data>>) -> Result<()> {
                 schema::Definition::TypeDefinition(t) => match t {
                     schema::TypeDefinition::Scalar(t) => {}
                     schema::TypeDefinition::Object(t) => {
-                        // dbg!(&t);
-                        // &data.graph.add_node(Node {
-                        //     id: String::from("TODO"),
-                        //     todo: (),
-                        // });
+                        // dbg!(&data.graph);
+                        data.graph.add_node(Node {
+                            id: file.to_owned(),
+                            inner: (),
+                        });
                         t.fields
                             .iter()
                             .map(|field| {
-                                dbg!(&field);
+                                dbg!(field.to_string());
+                                // TODO
+                                // data.graph.add_node(Node {
+                                //     id: field.name.to_owned(),
+                                //     inner: (),
+                                // });
                             })
                             .collect::<()>();
                     }

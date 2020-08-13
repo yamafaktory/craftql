@@ -9,7 +9,7 @@ pub struct State {
 
 pub struct Node<N> {
     pub id: String,
-    pub todo: N,
+    pub inner: N,
 }
 
 impl<N> fmt::Debug for Node<N>
@@ -17,7 +17,7 @@ where
     N: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {:?}", self.id, self.todo)
+        write!(f, "File: {} Inner: {:?}", self.id, self.inner)
     }
 }
 
