@@ -1,4 +1,4 @@
 type User {
   "The user's id"
-  urn: ID!
+  id: ID!
 }

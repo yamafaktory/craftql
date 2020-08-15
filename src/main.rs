@@ -4,7 +4,7 @@ mod utils;
 
 use crate::{
     state::State,
-    utils::{create_graph, get_files},
+    utils::{get_files, populate_graph_from_ast},
 };
 
 use anyhow::Result;
@@ -28,8 +28,8 @@ async fn main() -> Result<()> {
     // Walk the GraphQL files and populate the data.
     get_files(opts.path, shared_data).await?;
 
-    // TODO
-    create_graph(shared_data_cloned).await?;
+    // Populate the graph
+    populate_graph_from_ast(shared_data_cloned).await?;
 
     let data = shared_data_cloned_cloned.lock().await;
     println!("{:?}", Dot::new(&data.graph));

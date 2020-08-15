@@ -18,19 +18,28 @@ pub enum GraphQLType {
     Union,
 }
 
+/// Represents a GraphQL entity.
 pub struct Entity {
-    fields: Vec<String>,
-    name: String,
-    raw: String,
+    dependencies: Vec<String>,
     graphql_type: GraphQLType,
+    name: String,
+    path: String,
+    raw: String,
 }
 
 impl Entity {
-    pub fn new(fields: Vec<String>, graphql_type: GraphQLType, name: String, raw: String) -> Self {
+    pub fn new(
+        dependencies: Vec<String>,
+        graphql_type: GraphQLType,
+        name: String,
+        path: String,
+        raw: String,
+    ) -> Self {
         Entity {
-            fields,
+            dependencies,
             graphql_type,
             name,
+            path,
             raw,
         }
     }
@@ -38,28 +47,35 @@ impl Entity {
 
 impl fmt::Debug for Entity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Name: {} | Type: {:?}", self.name, self.graphql_type)
+        write!(
+            f,
+            "name: {}, type: {:?}, dependencies: {:?}",
+            self.name, self.graphql_type, self.dependencies
+        )
     }
 }
 
-pub struct Node<Entity> {
-    pub id: String,
+pub struct Node {
     pub entity: Entity,
+    pub id: String,
 }
 
-impl<N> fmt::Debug for Node<N>
-where
-    N: fmt::Debug,
-{
+impl Node {
+    pub fn new(entity: Entity, id: String) -> Self {
+        Node { entity, id }
+    }
+}
+
+impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "File: {} Entity: {:?}", self.id, self.entity)
+        write!(f, "id: {}, entity: {:?}", self.id, self.entity)
     }
 }
 
 #[derive(Debug)]
-pub struct Data<N = Entity, E = ()> {
+pub struct Data<E = ()> {
     pub files: HashMap<String, String>,
-    pub graph: petgraph::Graph<Node<N>, E>,
+    pub graph: petgraph::Graph<Node, E>,
 }
 
 impl State {
@@ -67,7 +83,7 @@ impl State {
         State {
             shared: Arc::new(Mutex::new(Data {
                 files: HashMap::new(),
-                graph: Graph::<Node<Entity>, ()>::new(),
+                graph: Graph::<Node, ()>::new(),
             })),
         }
     }

@@ -70,7 +70,7 @@ pub fn get_files(
 }
 
 /// Parse the files, generate an AST and walk it to populate the graph.
-pub async fn create_graph(shared_data: Arc<Mutex<Data>>) -> Result<()> {
+pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()> {
     let mut data = shared_data.lock().await;
     let files = &data.files.clone();
 
@@ -80,48 +80,91 @@ pub async fn create_graph(shared_data: Arc<Mutex<Data>>) -> Result<()> {
         for definition in ast.definitions {
             match definition {
                 schema::Definition::TypeDefinition(type_definition) => match type_definition {
-                    schema::TypeDefinition::Enum(todo) => {}
-                    schema::TypeDefinition::InputObject(todo) => {}
-                    schema::TypeDefinition::Interface(todo) => {}
-                    schema::TypeDefinition::Object(object_type) => {
-                        dbg!(object_type.to_string());
-                        data.graph.add_node(Node {
-                            id: file.to_owned(),
-                            entity: Entity::new(
-                                object_type
-                                    .fields
-                                    .iter()
-                                    .map(|field| {
-                                        walk_field(field)
-                                        // dbg!(walk_field(field));
-                                        // data.graph.add_node(Node {
-                                        //     id: field.name.to_owned(),
-                                        //     inner: (),
-                                        // });
-                                    })
-                                    .collect::<Vec<String>>(),
-                                GraphQLType::Object,
-                                object_type.name,
+                    schema::TypeDefinition::Enum(inner_enum) => {
+                        let id = inner_enum.name.clone();
+
+                        data.graph.add_node(Node::new(
+                            Entity::new(
+                                vec![],
+                                GraphQLType::Enum,
+                                inner_enum.name,
+                                file.to_owned(),
                                 contents.to_owned(),
                             ),
-                        });
-                        // object_type.fields
-                        //     .iter()
-                        //     .map(|field| {
-                        //         dbg!(walk_field(field));
-                        //         data.graph.add_node(Node {
-                        //             id: field.name.to_owned(),
-                        //             inner: (),
-                        //         });
-                        //     })
-                        //     .collect::<()>();
+                            id,
+                        ));
+                    }
+                    schema::TypeDefinition::InputObject(input_object) => {
+                        let fields = input_object
+                            .fields
+                            .iter()
+                            .map(|input_value| {
+                                let input_value = walk_input_value(input_value);
+
+                                // TODO: keep track of edge entity -> field.
+
+                                input_value.clone()
+                            })
+                            .collect::<Vec<String>>();
+
+                        let id = input_object.name.clone();
+
+                        // Inject entity as node into the graph.
+                        data.graph.add_node(Node::new(
+                            Entity::new(
+                                fields,
+                                GraphQLType::InputObject,
+                                input_object.name,
+                                file.to_owned(),
+                                contents.to_owned(),
+                            ),
+                            id,
+                        ));
+                    }
+                    schema::TypeDefinition::Interface(todo) => {}
+                    schema::TypeDefinition::Object(object_type) => {
+                        // ----------------------------------
+                        // TODO: take care of `implements`!
+                        // Those will need to be tracked as edges.
+                        // ----------------------------------
+                        dbg!(object_type.implements_interfaces);
+                        let fields = object_type
+                            .fields
+                            .iter()
+                            .map(|field| {
+                                let field = walk_field(field);
+
+                                // TODO: keep track of edge entity -> field.
+
+                                field.clone()
+                            })
+                            .collect::<Vec<String>>();
+                        let id = object_type.name.clone();
+
+                        // Inject entity as node into the graph.
+                        data.graph.add_node(Node::new(
+                            Entity::new(
+                                fields,
+                                GraphQLType::Object,
+                                object_type.name,
+                                file.to_owned(),
+                                contents.to_owned(),
+                            ),
+                            id,
+                        ));
                     }
                     schema::TypeDefinition::Scalar(todo) => {}
                     schema::TypeDefinition::Union(todo) => {}
                 },
-                schema::Definition::SchemaDefinition(todo) => {}
-                schema::Definition::DirectiveDefinition(todo) => {}
-                schema::Definition::TypeExtension(todo) => {}
+                schema::Definition::SchemaDefinition(todo) => {
+                    dbg!(todo);
+                }
+                schema::Definition::DirectiveDefinition(todo) => {
+                    dbg!(todo);
+                }
+                schema::Definition::TypeExtension(todo) => {
+                    dbg!(todo);
+                }
             }
         }
     }
@@ -130,20 +173,26 @@ pub async fn create_graph(shared_data: Arc<Mutex<Data>>) -> Result<()> {
 }
 
 /// Recursively walk the field types to get the inner String value.
-fn walk_field(field: &schema::Field<String>) -> String {
-    fn walk_field_type(field_type: &schema::Type<String>) -> String {
-        match field_type {
-            schema::Type::NamedType(name) => name.clone(),
-            schema::Type::ListType(field_type) => {
-                // Field type is boxed, need to unbox.
-                walk_field_type(field_type.as_ref())
-            }
-            schema::Type::NonNullType(field_type) => {
-                // Same here.
-                walk_field_type(field_type.as_ref())
-            }
+fn walk_field_type(field_type: &schema::Type<String>) -> String {
+    match field_type {
+        schema::Type::NamedType(name) => name.clone(),
+        schema::Type::ListType(field_type) => {
+            // Field type is boxed, need to unbox.
+            walk_field_type(field_type.as_ref())
         }
-    };
+        schema::Type::NonNullType(field_type) => {
+            // Same here.
+            walk_field_type(field_type.as_ref())
+        }
+    }
+}
 
+/// Recursively walk a field to get the inner String value.
+fn walk_field(field: &schema::Field<String>) -> String {
     walk_field_type(&field.field_type)
+}
+
+/// Recursively walk an input to get the inner String value.
+fn walk_input_value(input_value: &schema::InputValue<String>) -> String {
+    walk_field_type(&input_value.value_type)
 }
