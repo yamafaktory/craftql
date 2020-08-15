@@ -1,5 +1,5 @@
 use crate::config::ALLOWED_EXTENSIONS;
-use crate::state::{Data, Node};
+use crate::state::{Data, Entity, GraphQLType, Node};
 
 use anyhow::Result;
 use async_std::{
@@ -11,12 +11,12 @@ use async_std::{
     sync::{Arc, Mutex},
 };
 use graphql_parser::{parse_schema, schema};
-use petgraph::dot::Dot;
 
 fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
 }
 
+/// Recursively read directories and files for a given path.
 pub fn get_files(
     path: String,
     shared_data: Arc<Mutex<Data>>,
@@ -69,7 +69,8 @@ pub fn get_files(
     })
 }
 
-pub async fn foo(shared_data: Arc<Mutex<Data>>) -> Result<()> {
+/// Parse the files, generate an AST and walk it to populate the graph.
+pub async fn create_graph(shared_data: Arc<Mutex<Data>>) -> Result<()> {
     let mut data = shared_data.lock().await;
     let files = &data.files.clone();
 
@@ -78,39 +79,71 @@ pub async fn foo(shared_data: Arc<Mutex<Data>>) -> Result<()> {
 
         for definition in ast.definitions {
             match definition {
-                schema::Definition::TypeDefinition(t) => match t {
-                    schema::TypeDefinition::Scalar(t) => {}
-                    schema::TypeDefinition::Object(t) => {
-                        // dbg!(&data.graph);
+                schema::Definition::TypeDefinition(type_definition) => match type_definition {
+                    schema::TypeDefinition::Enum(todo) => {}
+                    schema::TypeDefinition::InputObject(todo) => {}
+                    schema::TypeDefinition::Interface(todo) => {}
+                    schema::TypeDefinition::Object(object_type) => {
+                        dbg!(object_type.to_string());
                         data.graph.add_node(Node {
                             id: file.to_owned(),
-                            inner: (),
+                            entity: Entity::new(
+                                object_type
+                                    .fields
+                                    .iter()
+                                    .map(|field| {
+                                        walk_field(field)
+                                        // dbg!(walk_field(field));
+                                        // data.graph.add_node(Node {
+                                        //     id: field.name.to_owned(),
+                                        //     inner: (),
+                                        // });
+                                    })
+                                    .collect::<Vec<String>>(),
+                                GraphQLType::Object,
+                                object_type.name,
+                                contents.to_owned(),
+                            ),
                         });
-                        t.fields
-                            .iter()
-                            .map(|field| {
-                                dbg!(field.to_string());
-                                // TODO
-                                // data.graph.add_node(Node {
-                                //     id: field.name.to_owned(),
-                                //     inner: (),
-                                // });
-                            })
-                            .collect::<()>();
+                        // object_type.fields
+                        //     .iter()
+                        //     .map(|field| {
+                        //         dbg!(walk_field(field));
+                        //         data.graph.add_node(Node {
+                        //             id: field.name.to_owned(),
+                        //             inner: (),
+                        //         });
+                        //     })
+                        //     .collect::<()>();
                     }
-                    schema::TypeDefinition::Interface(t) => {}
-                    schema::TypeDefinition::Union(t) => {}
-                    schema::TypeDefinition::Enum(t) => {}
-                    schema::TypeDefinition::InputObject(t) => {}
+                    schema::TypeDefinition::Scalar(todo) => {}
+                    schema::TypeDefinition::Union(todo) => {}
                 },
-                schema::Definition::SchemaDefinition(t) => {}
-                schema::Definition::DirectiveDefinition(t) => {}
-                schema::Definition::TypeExtension(t) => {}
+                schema::Definition::SchemaDefinition(todo) => {}
+                schema::Definition::DirectiveDefinition(todo) => {}
+                schema::Definition::TypeExtension(todo) => {}
             }
         }
     }
 
-    println!("{:?}", Dot::new(&data.graph));
-
     Ok(())
+}
+
+/// Recursively walk the field types to get the inner String value.
+fn walk_field(field: &schema::Field<String>) -> String {
+    fn walk_field_type(field_type: &schema::Type<String>) -> String {
+        match field_type {
+            schema::Type::NamedType(name) => name.clone(),
+            schema::Type::ListType(field_type) => {
+                // Field type is boxed, need to unbox.
+                walk_field_type(field_type.as_ref())
+            }
+            schema::Type::NonNullType(field_type) => {
+                // Same here.
+                walk_field_type(field_type.as_ref())
+            }
+        }
+    };
+
+    walk_field_type(&field.field_type)
 }
