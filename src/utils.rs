@@ -11,6 +11,8 @@ use async_std::{
     sync::{Arc, Mutex},
 };
 use graphql_parser::{parse_schema, schema};
+use petgraph::graph::NodeIndex;
+use std::collections::HashMap;
 
 fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
@@ -73,7 +75,10 @@ pub fn get_files(
 pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()> {
     let mut data = shared_data.lock().await;
     let files = &data.files.clone();
+    // Keep track of the dependencies for edges.
+    let mut dependencies: HashMap<NodeIndex, String> = HashMap::new();
 
+    // Populate the nodes first.
     for (file, contents) in files {
         let ast = parse_schema::<String>(contents.as_str())?;
 
@@ -98,21 +103,15 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         let fields = input_object
                             .fields
                             .iter()
-                            .map(|input_value| {
-                                let input_value = walk_input_value(input_value);
-
-                                // TODO: keep track of edge entity -> field.
-
-                                input_value.clone()
-                            })
+                            .map(|input_value| walk_input_value(input_value))
                             .collect::<Vec<String>>();
 
                         let id = input_object.name.clone();
 
                         // Inject entity as node into the graph.
-                        data.graph.add_node(Node::new(
+                        let node_index = data.graph.add_node(Node::new(
                             Entity::new(
-                                fields,
+                                fields.clone(),
                                 GraphQLType::InputObject,
                                 input_object.name,
                                 file.to_owned(),
@@ -120,31 +119,33 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             ),
                             id,
                         ));
+
+                        // Update dependencies.
+                        for dependency in fields {
+                            dependencies.insert(node_index, dependency);
+                        }
                     }
                     schema::TypeDefinition::Interface(todo) => {}
                     schema::TypeDefinition::Object(object_type) => {
-                        // ----------------------------------
-                        // TODO: take care of `implements`!
-                        // Those will need to be tracked as edges.
-                        // ----------------------------------
-                        dbg!(object_type.implements_interfaces);
-                        let fields = object_type
-                            .fields
-                            .iter()
-                            .map(|field| {
-                                let field = walk_field(field);
-
-                                // TODO: keep track of edge entity -> field.
-
-                                field.clone()
-                            })
-                            .collect::<Vec<String>>();
                         let id = object_type.name.clone();
 
+                        // Get the fields and the interfaces from the object.
+                        let fields_and_interfaces = vec![
+                            object_type
+                                .fields
+                                .iter()
+                                .map(|field| walk_field(field))
+                                .collect::<Vec<String>>(),
+                            object_type.implements_interfaces,
+                        ]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<String>>();
+
                         // Inject entity as node into the graph.
-                        data.graph.add_node(Node::new(
+                        let node_index = data.graph.add_node(Node::new(
                             Entity::new(
-                                fields,
+                                fields_and_interfaces.clone(),
                                 GraphQLType::Object,
                                 object_type.name,
                                 file.to_owned(),
@@ -152,20 +153,38 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             ),
                             id,
                         ));
+
+                        // Update dependencies.
+                        for dependency in fields_and_interfaces {
+                            dependencies.insert(node_index, dependency);
+                        }
                     }
                     schema::TypeDefinition::Scalar(todo) => {}
                     schema::TypeDefinition::Union(todo) => {}
                 },
                 schema::Definition::SchemaDefinition(todo) => {
-                    dbg!(todo);
+                    // dbg!(todo);
                 }
                 schema::Definition::DirectiveDefinition(todo) => {
-                    dbg!(todo);
+                    // dbg!(todo);
                 }
                 schema::Definition::TypeExtension(todo) => {
-                    dbg!(todo);
+                    // dbg!(todo);
                 }
             }
+        }
+    }
+
+    // Populate the edges.
+    for (node_index, dependency) in dependencies {
+        // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
+        let maybe_index = &data
+            .graph
+            .node_indices()
+            .find(|index| data.graph[*index].id == dependency);
+
+        if let Some(index) = *maybe_index {
+            &data.graph.update_edge(index, node_index, ());
         }
     }
 
