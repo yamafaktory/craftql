@@ -1,4 +1,5 @@
 use async_std::sync::{Arc, Mutex};
+use petgraph::graph::NodeIndex;
 use petgraph::Graph;
 use std::{collections::HashMap, fmt};
 
@@ -73,9 +74,9 @@ impl fmt::Debug for Node {
 }
 
 #[derive(Debug)]
-pub struct Data<E = ()> {
+pub struct Data {
     pub files: HashMap<String, String>,
-    pub graph: petgraph::Graph<Node, E>,
+    pub graph: petgraph::Graph<Node, (NodeIndex, NodeIndex)>,
 }
 
 impl State {
@@ -83,7 +84,7 @@ impl State {
         State {
             shared: Arc::new(Mutex::new(Data {
                 files: HashMap::new(),
-                graph: Graph::<Node, ()>::new(),
+                graph: Graph::<Node, (NodeIndex, NodeIndex)>::new(),
             })),
         }
     }

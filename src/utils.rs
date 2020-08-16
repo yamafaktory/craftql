@@ -76,7 +76,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
     let mut data = shared_data.lock().await;
     let files = &data.files.clone();
     // Keep track of the dependencies for edges.
-    let mut dependencies: HashMap<NodeIndex, String> = HashMap::new();
+    let mut dependency_hash_map: HashMap<NodeIndex, Vec<String>> = HashMap::new();
 
     // Populate the nodes first.
     for (file, contents) in files {
@@ -88,7 +88,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                     schema::TypeDefinition::Enum(inner_enum) => {
                         let id = inner_enum.name.clone();
 
-                        data.graph.add_node(Node::new(
+                        let node_index = data.graph.add_node(Node::new(
                             Entity::new(
                                 vec![],
                                 GraphQLType::Enum,
@@ -121,9 +121,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         ));
 
                         // Update dependencies.
-                        for dependency in fields {
-                            dependencies.insert(node_index, dependency);
-                        }
+                        dependency_hash_map.insert(node_index, fields);
                     }
                     schema::TypeDefinition::Interface(todo) => {}
                     schema::TypeDefinition::Object(object_type) => {
@@ -155,9 +153,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         ));
 
                         // Update dependencies.
-                        for dependency in fields_and_interfaces {
-                            dependencies.insert(node_index, dependency);
-                        }
+                        dependency_hash_map.insert(node_index, fields_and_interfaces);
                     }
                     schema::TypeDefinition::Scalar(todo) => {}
                     schema::TypeDefinition::Union(todo) => {}
@@ -176,15 +172,19 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
     }
 
     // Populate the edges.
-    for (node_index, dependency) in dependencies {
-        // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
-        let maybe_index = &data
-            .graph
-            .node_indices()
-            .find(|index| data.graph[*index].id == dependency);
+    for (node_index, dependencies) in dependency_hash_map {
+        for dependency in dependencies {
+            // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
+            let maybe_index = &data
+                .graph
+                .node_indices()
+                .find(|index| data.graph[*index].id == dependency);
 
-        if let Some(index) = *maybe_index {
-            &data.graph.update_edge(index, node_index, ());
+            if let Some(index) = *maybe_index {
+                &data
+                    .graph
+                    .update_edge(index, node_index, (index, node_index));
+            }
         }
     }
 
