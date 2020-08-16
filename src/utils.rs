@@ -1,5 +1,5 @@
 use crate::config::ALLOWED_EXTENSIONS;
-use crate::state::{Data, Entity, GraphQLType, Node};
+use crate::state::{Data, Entity, GraphQLDefinition, GraphQLType, Node};
 
 use anyhow::Result;
 use async_std::{
@@ -88,7 +88,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                     schema::TypeDefinition::Enum(inner_enum) => {
                         let id = inner_enum.name.clone();
 
-                        let node_index = data.graph.add_node(Node::new(
+                        data.graph.add_node(Node::new(
                             Entity::new(
                                 vec![],
                                 GraphQLType::Enum,
@@ -100,13 +100,12 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         ));
                     }
                     schema::TypeDefinition::InputObject(input_object) => {
+                        let id = input_object.name.clone();
                         let fields = input_object
                             .fields
                             .iter()
                             .map(|input_value| walk_input_value(input_value))
                             .collect::<Vec<String>>();
-
-                        let id = input_object.name.clone();
 
                         // Inject entity as node into the graph.
                         let node_index = data.graph.add_node(Node::new(
@@ -123,18 +122,39 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         // Update dependencies.
                         dependency_hash_map.insert(node_index, fields);
                     }
-                    schema::TypeDefinition::Interface(todo) => {}
-                    schema::TypeDefinition::Object(object_type) => {
-                        let id = object_type.name.clone();
+                    schema::TypeDefinition::Interface(interface) => {
+                        let id = interface.name.clone();
+                        let fields = interface
+                            .fields
+                            .iter()
+                            .map(|field| walk_field(field))
+                            .collect::<Vec<String>>();
 
-                        // Get the fields and the interfaces from the object.
+                        // Inject entity as node into the graph.
+                        let node_index = data.graph.add_node(Node::new(
+                            Entity::new(
+                                fields.clone(),
+                                GraphQLType::Interface,
+                                interface.name,
+                                file.to_owned(),
+                                contents.to_owned(),
+                            ),
+                            id,
+                        ));
+
+                        // Update dependencies.
+                        dependency_hash_map.insert(node_index, fields);
+                    }
+                    schema::TypeDefinition::Object(object) => {
+                        let id = object.name.clone();
+                        // Get both the fields and the interfaces from the object.
                         let fields_and_interfaces = vec![
-                            object_type
+                            object
                                 .fields
                                 .iter()
                                 .map(|field| walk_field(field))
                                 .collect::<Vec<String>>(),
-                            object_type.implements_interfaces,
+                            object.implements_interfaces,
                         ]
                         .into_iter()
                         .flatten()
@@ -145,7 +165,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             Entity::new(
                                 fields_and_interfaces.clone(),
                                 GraphQLType::Object,
-                                object_type.name,
+                                object.name,
                                 file.to_owned(),
                                 contents.to_owned(),
                             ),
@@ -155,16 +175,68 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         // Update dependencies.
                         dependency_hash_map.insert(node_index, fields_and_interfaces);
                     }
-                    schema::TypeDefinition::Scalar(todo) => {}
-                    schema::TypeDefinition::Union(todo) => {}
+                    schema::TypeDefinition::Scalar(scalar) => {
+                        let id = scalar.name.clone();
+
+                        data.graph.add_node(Node::new(
+                            Entity::new(
+                                vec![],
+                                GraphQLType::Object,
+                                scalar.name,
+                                file.to_owned(),
+                                contents.to_owned(),
+                            ),
+                            id,
+                        ));
+                    }
+                    schema::TypeDefinition::Union(union) => {
+                        let id = union.name.clone();
+                        let types = union.types;
+
+                        // Inject entity as node into the graph.
+                        let node_index = data.graph.add_node(Node::new(
+                            Entity::new(
+                                types.clone(),
+                                GraphQLType::Union,
+                                union.name,
+                                file.to_owned(),
+                                contents.to_owned(),
+                            ),
+                            id,
+                        ));
+
+                        // Update dependencies.
+                        dependency_hash_map.insert(node_index, types);
+                    }
                 },
-                schema::Definition::SchemaDefinition(todo) => {
+                schema::Definition::SchemaDefinition(schema) => {
+                    // A Schema has no name, use a default one.
+                    let id = String::from("Schema");
+                    // A schema can only have a query, a mutation and a subscription.
+                    let fields = vec![schema.query, schema.mutation, schema.subscription]
+                        .into_iter()
+                        .filter_map(|field| field)
+                        .collect::<Vec<String>>();
+
+                    // Inject entity as node into the graph.
+                    let node_index = data.graph.add_node(Node::new(
+                        Entity::new(
+                            fields.clone(),
+                            GraphQLType::Definition(GraphQLDefinition::Schema),
+                            String::from("Schema"),
+                            file.to_owned(),
+                            contents.to_owned(),
+                        ),
+                        id,
+                    ));
+
+                    // Update dependencies.
+                    dependency_hash_map.insert(node_index, fields);
+                }
+                schema::Definition::DirectiveDefinition(directive) => {
                     // dbg!(todo);
                 }
-                schema::Definition::DirectiveDefinition(todo) => {
-                    // dbg!(todo);
-                }
-                schema::Definition::TypeExtension(todo) => {
+                schema::Definition::TypeExtension(type_extension) => {
                     // dbg!(todo);
                 }
             }

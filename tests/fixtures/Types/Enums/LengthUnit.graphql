@@ -1,0 +1,7 @@
+# Units of height
+enum LengthUnit {
+  # The standard unit around the world
+  METER
+  # Primarily used in the United States
+  FOOT
+}

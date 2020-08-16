@@ -1,0 +1,10 @@
+type Starship {
+  # The ID of the starship
+  id: ID!
+  # The name of the starship
+  newName: String!
+  oldName: String! @deprecated(reason: "Use `newName`.")
+  # Length of the starship, along the longest axis
+  length(unit: LengthUnit = METER): Float
+  coordinates: [[Float!]!]
+}

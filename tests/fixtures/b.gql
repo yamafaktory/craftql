@@ -1,4 +1,0 @@
-type User {
-  "The user's id"
-  id: ID!
-}

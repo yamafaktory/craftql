@@ -9,8 +9,14 @@ pub struct State {
 }
 
 #[derive(Debug)]
+pub enum GraphQLDefinition {
+    Schema,
+}
+
+#[derive(Debug)]
 /// Derived from graphql_parser::schema::TypeDefinition enum.
-pub enum GraphQLType {
+pub enum GraphQLType<D = GraphQLDefinition> {
+    Definition(D),
     Enum,
     InputObject,
     Interface,
@@ -58,6 +64,8 @@ impl fmt::Debug for Entity {
 
 pub struct Node {
     pub entity: Entity,
+    // Using the entity name as id is safe as it is unique.
+    // http://spec.graphql.org/draft/#sec-Schema
     pub id: String,
 }
 
