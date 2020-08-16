@@ -76,7 +76,7 @@ impl Node {
 
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "id: {}, entity: {:?}", self.id, self.entity)
+        write!(f, "entity: {:?}", self.entity)
     }
 }
 
