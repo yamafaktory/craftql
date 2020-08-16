@@ -128,6 +128,8 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             .fields
                             .iter()
                             .map(|field| walk_field(field))
+                            .into_iter()
+                            .flatten()
                             .collect::<Vec<String>>();
 
                         // Inject entity as node into the graph.
@@ -153,6 +155,8 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                                 .fields
                                 .iter()
                                 .map(|field| walk_field(field))
+                                .into_iter()
+                                .flatten()
                                 .collect::<Vec<String>>(),
                             object.implements_interfaces,
                         ]
@@ -278,9 +282,25 @@ fn walk_field_type(field_type: &schema::Type<String>) -> String {
     }
 }
 
-/// Recursively walk a field to get the inner String value.
-fn walk_field(field: &schema::Field<String>) -> String {
-    walk_field_type(&field.field_type)
+/// Recursively walk a field to get the inner String value and the arguments.
+fn walk_field(field: &schema::Field<String>) -> Vec<String> {
+    let mut arguments_and_field_types = field
+        .arguments
+        .iter()
+        .map(|argument| {
+            if let Some(value) = &argument.default_value {
+                return vec![walk_field_type(&argument.value_type), value.to_string()];
+            }
+
+            vec![walk_field_type(&argument.value_type)]
+        })
+        .into_iter()
+        .flatten()
+        .collect::<Vec<String>>();
+
+    arguments_and_field_types.push(walk_field_type(&field.field_type));
+
+    arguments_and_field_types
 }
 
 /// Recursively walk an input to get the inner String value.

@@ -1,6 +1,5 @@
 use async_std::sync::{Arc, Mutex};
-use petgraph::graph::NodeIndex;
-use petgraph::Graph;
+use petgraph::{graph::NodeIndex, Graph};
 use std::{collections::HashMap, fmt};
 
 #[derive(Debug)]

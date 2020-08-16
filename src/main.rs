@@ -9,7 +9,7 @@ use crate::{
 
 use anyhow::Result;
 use clap::{crate_authors, crate_description, crate_version, Clap};
-use petgraph::dot::Dot;
+use petgraph::dot::{Config, Dot};
 
 #[derive(Clap)]
 #[clap(author = crate_authors!(), about = crate_description!(), version = crate_version!())]
@@ -32,7 +32,10 @@ async fn main() -> Result<()> {
     populate_graph_from_ast(shared_data_cloned).await?;
 
     let data = shared_data_cloned_cloned.lock().await;
-    println!("{:?}", Dot::new(&data.graph));
+    println!(
+        "{:?}",
+        Dot::with_config(&data.graph, &[Config::EdgeNoLabel])
+    );
 
     Ok(())
 }
