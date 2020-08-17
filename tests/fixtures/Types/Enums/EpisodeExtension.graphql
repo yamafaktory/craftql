@@ -1,0 +1,4 @@
+extend enum Episode {
+  # Star Wars Episode I: The Phantom Menace, released in 1999.
+  PHANTOM
+}

@@ -9,6 +9,7 @@ pub struct State {
 
 #[derive(Debug)]
 pub enum GraphQLDefinition {
+    Definition,
     Schema,
 }
 

@@ -37,5 +37,11 @@ async fn main() -> Result<()> {
         Dot::with_config(&data.graph, &[Config::EdgeNoLabel])
     );
 
+    // TODO:
+    // What should be the default? Getting a graph?
+    // - flag to get orphans
+    // - flag to get graph?
+    // - flag to output content of one entity
+
     Ok(())
 }
