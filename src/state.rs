@@ -7,16 +7,9 @@ pub struct State {
     pub shared: Arc<Mutex<Data>>,
 }
 
+/// Core GraphQL types used for definitions and extensions.
 #[derive(Debug)]
-pub enum GraphQLDefinition {
-    Definition,
-    Schema,
-}
-
-#[derive(Debug)]
-/// Derived from graphql_parser::schema::TypeDefinition enum.
-pub enum GraphQLType<D = GraphQLDefinition> {
-    Definition(D),
+pub enum GraphQLType {
     Enum,
     InputObject,
     Interface,
@@ -25,10 +18,19 @@ pub enum GraphQLType<D = GraphQLDefinition> {
     Union,
 }
 
+#[derive(Debug)]
+/// Derived and simplified from graphql_parser::schema enums.
+pub enum GraphQL<T = GraphQLType> {
+    Directive,
+    Schema,
+    TypeDefinition(T),
+    TypeExtension(T),
+}
+
 /// Represents a GraphQL entity.
 pub struct Entity {
     dependencies: Vec<String>,
-    graphql_type: GraphQLType,
+    graphql: GraphQL,
     name: String,
     path: String,
     raw: String,
@@ -37,14 +39,14 @@ pub struct Entity {
 impl Entity {
     pub fn new(
         dependencies: Vec<String>,
-        graphql_type: GraphQLType,
+        graphql: GraphQL,
         name: String,
         path: String,
         raw: String,
     ) -> Self {
         Entity {
             dependencies,
-            graphql_type,
+            graphql,
             name,
             path,
             raw,
@@ -57,7 +59,7 @@ impl fmt::Debug for Entity {
         write!(
             f,
             "name: {}, type: {:?}, dependencies: {:?}",
-            self.name, self.graphql_type, self.dependencies
+            self.name, self.graphql, self.dependencies
         )
     }
 }

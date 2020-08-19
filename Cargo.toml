@@ -11,5 +11,5 @@ graphql-parser = "0.3.0"
 petgraph = "0.5.1"
 
 [dependencies.async-std]
-version = "1.6.2"
+version = "1.6.3"
 features = ["attributes", "unstable"]

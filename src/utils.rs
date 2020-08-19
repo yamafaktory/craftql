@@ -1,5 +1,5 @@
 use crate::config::ALLOWED_EXTENSIONS;
-use crate::state::{Data, Entity, GraphQLDefinition, GraphQLType, Node};
+use crate::state::{Data, Entity, GraphQL, GraphQLType, Node};
 
 use anyhow::Result;
 use async_std::{
@@ -16,6 +16,10 @@ use std::collections::HashMap;
 
 fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
+}
+
+fn get_extended_id(id: String) -> String {
+    format!("{}Ext", id)
 }
 
 /// Recursively read directories and files for a given path.
@@ -90,8 +94,8 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
 
                         data.graph.add_node(Node::new(
                             Entity::new(
-                                vec![],
-                                GraphQLType::Enum,
+                                vec![], // Enums don't have dependencies.
+                                GraphQL::TypeDefinition(GraphQLType::Enum),
                                 inner_enum.name,
                                 file.to_owned(),
                                 contents.to_owned(),
@@ -111,7 +115,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         let node_index = data.graph.add_node(Node::new(
                             Entity::new(
                                 fields.clone(),
-                                GraphQLType::InputObject,
+                                GraphQL::TypeDefinition(GraphQLType::InputObject),
                                 input_object_type.name,
                                 file.to_owned(),
                                 contents.to_owned(),
@@ -136,7 +140,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         let node_index = data.graph.add_node(Node::new(
                             Entity::new(
                                 fields.clone(),
-                                GraphQLType::Interface,
+                                GraphQL::TypeDefinition(GraphQLType::Interface),
                                 interface_type.name,
                                 file.to_owned(),
                                 contents.to_owned(),
@@ -168,7 +172,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         let node_index = data.graph.add_node(Node::new(
                             Entity::new(
                                 fields_and_interfaces.clone(),
-                                GraphQLType::Object,
+                                GraphQL::TypeDefinition(GraphQLType::Object),
                                 object_type.name,
                                 file.to_owned(),
                                 contents.to_owned(),
@@ -185,7 +189,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         data.graph.add_node(Node::new(
                             Entity::new(
                                 vec![],
-                                GraphQLType::Object,
+                                GraphQL::TypeDefinition(GraphQLType::Scalar),
                                 scalar_type.name,
                                 file.to_owned(),
                                 contents.to_owned(),
@@ -201,7 +205,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         let node_index = data.graph.add_node(Node::new(
                             Entity::new(
                                 types.clone(),
-                                GraphQLType::Union,
+                                GraphQL::TypeDefinition(GraphQLType::Union),
                                 union_type.name,
                                 file.to_owned(),
                                 contents.to_owned(),
@@ -230,7 +234,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                     let node_index = data.graph.add_node(Node::new(
                         Entity::new(
                             fields.clone(),
-                            GraphQLType::Definition(GraphQLDefinition::Schema),
+                            GraphQL::Schema,
                             String::from("Schema"),
                             file.to_owned(),
                             contents.to_owned(),
@@ -254,7 +258,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                     let node_index = data.graph.add_node(Node::new(
                         Entity::new(
                             fields.clone(),
-                            GraphQLType::Definition(GraphQLDefinition::Definition),
+                            GraphQL::Directive,
                             directive_definition.name,
                             file.to_owned(),
                             contents.to_owned(),
@@ -267,15 +271,86 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                 }
                 schema::Definition::TypeExtension(type_extension) => {
                     // http://spec.graphql.org/draft/#SchemaExtension
-                    // TODO: 
                     match type_extension {
                         schema::TypeExtension::Object(object_type_extension) => {
-                            dbg!(object_type_extension);
+                            let id = object_type_extension.name.clone();
+                            // Merge the fields, the interfaces and the extended source.
+                            let dependencies = vec![
+                                object_type_extension
+                                    .fields
+                                    .iter()
+                                    .map(|field| walk_field(field))
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<String>>(),
+                                object_type_extension.implements_interfaces,
+                            ]
+                            .into_iter()
+                            .flatten()
+                            .chain(vec![object_type_extension.name.clone()])
+                            .collect::<Vec<String>>();
+
+                            // Inject entity as node into the graph.
+                            let node_index = data.graph.add_node(Node::new(
+                                Entity::new(
+                                    dependencies.clone(),
+                                    GraphQL::TypeExtension(GraphQLType::Object),
+                                    object_type_extension.name,
+                                    file.to_owned(),
+                                    contents.to_owned(),
+                                ),
+                                get_extended_id(id),
+                            ));
+
+                            // Update dependencies.
+                            dependency_hash_map.insert(node_index, dependencies);
                         }
-                        schema::TypeExtension::Scalar(scalar_type_extension) => {}
+                        schema::TypeExtension::Scalar(scalar_type_extension) => {
+                            let id = scalar_type_extension.name.clone();
+
+                            let dependencies = scalar_type_extension
+                                .directives
+                                .iter()
+                                .map(|directive| directive.name.clone())
+                                .chain(vec![scalar_type_extension.name.clone()])
+                                .collect::<Vec<String>>();
+
+                            let node_index = data.graph.add_node(Node::new(
+                                Entity::new(
+                                    dependencies.clone(),
+                                    GraphQL::TypeExtension(GraphQLType::Scalar),
+                                    scalar_type_extension.name,
+                                    file.to_owned(),
+                                    contents.to_owned(),
+                                ),
+                                get_extended_id(id),
+                            ));
+
+                            // Update dependencies.
+                            dependency_hash_map.insert(node_index, dependencies);
+                        }
                         schema::TypeExtension::Interface(interface_type_extension) => {}
                         schema::TypeExtension::Union(union_type_extension) => {}
-                        schema::TypeExtension::Enum(enum_type_extension) => {}
+                        schema::TypeExtension::Enum(enum_type_extension) => {
+                            let id = enum_type_extension.name.clone();
+
+                            // Enums don't have dependencies but here we need the enum source.
+                            let dependencies = vec![enum_type_extension.name.clone()];
+
+                            let node_index = data.graph.add_node(Node::new(
+                                Entity::new(
+                                    dependencies.clone(),
+                                    GraphQL::TypeExtension(GraphQLType::Enum),
+                                    enum_type_extension.name,
+                                    file.to_owned(),
+                                    contents.to_owned(),
+                                ),
+                                get_extended_id(id),
+                            ));
+
+                            // Update dependencies.
+                            dependency_hash_map.insert(node_index, dependencies);
+                        }
                         schema::TypeExtension::InputObject(input_object_type_extension) => {}
                     };
                 }
