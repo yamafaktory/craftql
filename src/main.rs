@@ -42,6 +42,8 @@ async fn main() -> Result<()> {
     // - flag to get orphans
     // - flag to get graph?
     // - flag to output content of one entity
+    // - flag to list dependencies
+    // - tests
 
     Ok(())
 }

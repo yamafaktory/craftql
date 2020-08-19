@@ -1,0 +1,4 @@
+extend interface Character {
+  # Is the character friendly?
+  friendly: Boolean!
+}

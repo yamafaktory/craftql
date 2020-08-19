@@ -329,7 +329,40 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             // Update dependencies.
                             dependency_hash_map.insert(node_index, dependencies);
                         }
-                        schema::TypeExtension::Interface(interface_type_extension) => {}
+                        schema::TypeExtension::Interface(interface_type_extension) => {
+                            let id = interface_type_extension.name.clone();
+
+                            let dependencies = interface_type_extension
+                                .directives
+                                .iter()
+                                .map(|directive| directive.name.clone())
+                                // Inject fields.
+                                .chain(
+                                    interface_type_extension
+                                        .fields
+                                        .iter()
+                                        .map(|field| walk_field(field))
+                                        .into_iter()
+                                        .flatten(),
+                                )
+                                // Inject source.
+                                .chain(vec![interface_type_extension.name.clone()])
+                                .collect::<Vec<String>>();
+
+                            let node_index = data.graph.add_node(Node::new(
+                                Entity::new(
+                                    dependencies.clone(),
+                                    GraphQL::TypeExtension(GraphQLType::Scalar),
+                                    interface_type_extension.name,
+                                    file.to_owned(),
+                                    contents.to_owned(),
+                                ),
+                                get_extended_id(id),
+                            ));
+
+                            // Update dependencies.
+                            dependency_hash_map.insert(node_index, dependencies);
+                        }
                         schema::TypeExtension::Union(union_type_extension) => {}
                         schema::TypeExtension::Enum(enum_type_extension) => {
                             let id = enum_type_extension.name.clone();
