@@ -89,19 +89,39 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
         for definition in ast.definitions {
             match definition {
                 schema::Definition::TypeDefinition(type_definition) => match type_definition {
-                    schema::TypeDefinition::Enum(inner_enum) => {
-                        let id = inner_enum.name.clone();
+                    schema::TypeDefinition::Enum(enum_type) => {
+                        let id = enum_type.name.clone();
+                        let dependencies = enum_type
+                            .directives
+                            .iter()
+                            .map(|directive| directive.name.clone())
+                            .chain(
+                                enum_type
+                                    .values
+                                    .iter()
+                                    .map(|enum_value| {
+                                        enum_value
+                                            .directives
+                                            .iter()
+                                            .map(|directive| directive.name.clone())
+                                    })
+                                    .flatten(),
+                            )
+                            .collect::<Vec<String>>();
 
-                        data.graph.add_node(Node::new(
+                        let node_index = data.graph.add_node(Node::new(
                             Entity::new(
-                                vec![], // Enums don't have dependencies.
+                                dependencies.clone(), // Enums don't have dependencies.
                                 GraphQL::TypeDefinition(GraphQLType::Enum),
-                                inner_enum.name,
+                                enum_type.name,
                                 file.to_owned(),
                                 contents.to_owned(),
                             ),
                             id,
                         ));
+
+                        // Update dependencies.
+                        dependency_hash_map.insert(node_index, dependencies);
                     }
                     schema::TypeDefinition::InputObject(input_object_type) => {
                         let id = input_object_type.name.clone();
@@ -247,7 +267,6 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                 }
                 schema::Definition::DirectiveDefinition(directive_definition) => {
                     let id = directive_definition.name.clone();
-                    // Get both the fields and the interfaces from the object.
                     let fields = directive_definition
                         .arguments
                         .iter()
@@ -475,15 +494,8 @@ fn walk_field(field: &schema::Field<String>) -> Vec<String> {
         // Inject arguments.
         .arguments
         .iter()
-        .map(|argument| {
-            if let Some(value) = &argument.default_value {
-                return vec![walk_field_type(&argument.value_type), value.to_string()];
-            }
-
-            vec![walk_field_type(&argument.value_type)]
-        })
+        .map(|argument| walk_field_type(&argument.value_type))
         .into_iter()
-        .flatten()
         // Inject directives.
         .chain(
             field

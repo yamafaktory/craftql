@@ -1,7 +1,7 @@
 # The episodes in the Star Wars trilogy
-enum Episode {
+enum Episode @test(letter: B) {
   # Star Wars Episode IV: A New Hope, released in 1977.
-  NEWHOPE
+  NEWHOPE @deprecated
   # Star Wars Episode V: The Empire Strikes Back, released in 1980.
   EMPIRE
   # Star Wars Episode VI: Return of the Jedi, released in 1983.

@@ -1,1 +1,1 @@
-extend scalar DateTime @deprecated
+extend scalar DateTime @test

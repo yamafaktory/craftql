@@ -1,0 +1,5 @@
+enum Letter {
+  A
+  B
+  C
+}
