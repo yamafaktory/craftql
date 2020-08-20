@@ -363,7 +363,27 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             // Update dependencies.
                             dependency_hash_map.insert(node_index, dependencies);
                         }
-                        schema::TypeExtension::Union(union_type_extension) => {}
+                        schema::TypeExtension::Union(union_type_extension) => {
+                            let id = union_type_extension.name.clone();
+                            let mut dependencies = union_type_extension.types;
+
+                            dependencies.extend(vec![union_type_extension.name.clone()]);
+
+                            // Inject entity as node into the graph.
+                            let node_index = data.graph.add_node(Node::new(
+                                Entity::new(
+                                    dependencies.clone(),
+                                    GraphQL::TypeExtension(GraphQLType::Union),
+                                    union_type_extension.name,
+                                    file.to_owned(),
+                                    contents.to_owned(),
+                                ),
+                                get_extended_id(id),
+                            ));
+
+                            // Update dependencies.
+                            dependency_hash_map.insert(node_index, dependencies);
+                        }
                         schema::TypeExtension::Enum(enum_type_extension) => {
                             let id = enum_type_extension.name.clone();
 
@@ -384,7 +404,30 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             // Update dependencies.
                             dependency_hash_map.insert(node_index, dependencies);
                         }
-                        schema::TypeExtension::InputObject(input_object_type_extension) => {}
+                        schema::TypeExtension::InputObject(input_object_type_extension) => {
+                            let id = input_object_type_extension.name.clone();
+                            let dependencies = input_object_type_extension
+                                .fields
+                                .iter()
+                                .map(|input_value| walk_input_value(input_value))
+                                .chain(vec![input_object_type_extension.name.clone()])
+                                .collect::<Vec<String>>();
+
+                            // Inject entity as node into the graph.
+                            let node_index = data.graph.add_node(Node::new(
+                                Entity::new(
+                                    dependencies.clone(),
+                                    GraphQL::TypeExtension(GraphQLType::InputObject),
+                                    input_object_type_extension.name,
+                                    file.to_owned(),
+                                    contents.to_owned(),
+                                ),
+                                get_extended_id(id),
+                            ));
+
+                            // Update dependencies.
+                            dependency_hash_map.insert(node_index, dependencies);
+                        }
                     };
                 }
             }
