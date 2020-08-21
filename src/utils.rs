@@ -129,6 +129,13 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             .fields
                             .iter()
                             .map(|input_value| walk_input_value(input_value))
+                            .flatten()
+                            .chain(
+                                input_object_type
+                                    .directives
+                                    .iter()
+                                    .map(|directive| directive.name.clone()),
+                            )
                             .collect::<Vec<String>>();
 
                         // Inject entity as node into the graph.
@@ -271,6 +278,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         .arguments
                         .iter()
                         .map(|input_value| walk_input_value(input_value))
+                        .flatten()
                         .collect::<Vec<String>>();
 
                     // Inject entity as node into the graph.
@@ -429,6 +437,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                                 .fields
                                 .iter()
                                 .map(|input_value| walk_input_value(input_value))
+                                .flatten()
                                 .chain(vec![input_object_type_extension.name.clone()])
                                 .collect::<Vec<String>>();
 
@@ -509,6 +518,12 @@ fn walk_field(field: &schema::Field<String>) -> Vec<String> {
 }
 
 /// Recursively walk an input to get the inner String value.
-fn walk_input_value(input_value: &schema::InputValue<String>) -> String {
-    walk_field_type(&input_value.value_type)
+fn walk_input_value(input_value: &schema::InputValue<String>) -> Vec<String> {
+    input_value
+        .directives
+        .iter()
+        .map(|directive| directive.name.clone())
+        .into_iter()
+        .chain(vec![walk_field_type(&input_value.value_type)])
+        .collect::<Vec<String>>()
 }

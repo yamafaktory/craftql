@@ -8,8 +8,9 @@ input ReviewInput {
   favorite_color: ColorInput
 }
 # The input object sent when passing in a color
-input ColorInput {
+input ColorInput @test {
   red: Int!
   green: Int!
   blue: Int!
+  cyan: Int! @deprecated
 }

@@ -8,7 +8,7 @@ pub struct State {
 }
 
 /// Core GraphQL types used for definitions and extensions.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GraphQLType {
     Enum,
     InputObject,
@@ -18,13 +18,26 @@ pub enum GraphQLType {
     Union,
 }
 
-#[derive(Debug)]
 /// Derived and simplified from graphql_parser::schema enums.
 pub enum GraphQL<T = GraphQLType> {
     Directive,
     Schema,
     TypeDefinition(T),
     TypeExtension(T),
+}
+
+impl<T> fmt::Debug for GraphQL<T>
+where
+    T: fmt::Debug + Copy,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            GraphQL::Directive => write!(f, "Directive"),
+            GraphQL::Schema => write!(f, "Schema"),
+            GraphQL::TypeDefinition(graphql_type) => write!(f, "{:?}", graphql_type),
+            GraphQL::TypeExtension(graphql_type) => write!(f, "{:?} extension", graphql_type),
+        }
+    }
 }
 
 /// Represents a GraphQL entity.
@@ -58,7 +71,7 @@ impl fmt::Debug for Entity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "name: {}, type: {:?}, dependencies: {:?}",
+            "{} ({:?}) {:?}",
             self.name, self.graphql, self.dependencies
         )
     }
@@ -79,7 +92,7 @@ impl Node {
 
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "entity: {:?}", self.entity)
+        write!(f, "{:?}", self.entity)
     }
 }
 
