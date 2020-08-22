@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_std::{
     fs,
     future::Future,
-    path::Path,
+    path::{Path, PathBuf},
     pin::Pin,
     prelude::*,
     sync::{Arc, Mutex},
@@ -24,7 +24,7 @@ fn get_extended_id(id: String) -> String {
 
 /// Recursively read directories and files for a given path.
 pub fn get_files(
-    path: String,
+    path: PathBuf,
     shared_data: Arc<Mutex<Data>>,
 ) -> Pin<Box<dyn Future<Output = Result<()>>>> {
     // Use a hack to get async recursive calls working.
@@ -53,21 +53,20 @@ pub fn get_files(
 
         let mut dir = fs::read_dir(thread_safe_path.as_ref()).await?;
 
-        while let Some(res) = dir.next().await {
-            let entry: fs::DirEntry = res?;
+        while let Some(result) = dir.next().await {
+            let entry: fs::DirEntry = result?;
             let inner_path = entry.path();
             let inner_path_cloned = inner_path.clone();
             let metadata = entry.clone().metadata().await?;
             let is_dir = metadata.is_dir();
-            let inner_path_as_string = inner_path_cloned.into_os_string().into_string().unwrap();
 
             if !is_dir && is_extension_allowed(&inner_path.extension().unwrap().to_str().unwrap()) {
                 let contents = fs::read_to_string(inner_path).await?;
                 let mut data = shared_data.lock().await;
 
-                data.files.insert(inner_path_as_string, contents);
+                data.files.insert(inner_path_cloned, contents);
             } else {
-                get_files(inner_path_as_string, shared_data.clone()).await?;
+                get_files(inner_path, shared_data.clone()).await?;
             }
         }
 

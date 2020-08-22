@@ -8,13 +8,14 @@ use crate::{
 };
 
 use anyhow::Result;
+use async_std::path::PathBuf;
 use clap::{crate_authors, crate_description, crate_version, Clap};
 use petgraph::dot::{Config, Dot};
 
 #[derive(Clap)]
 #[clap(author = crate_authors!(), about = crate_description!(), version = crate_version!())]
 struct Opts {
-    path: String,
+    path: PathBuf,
 }
 
 #[async_std::main]

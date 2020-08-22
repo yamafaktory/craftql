@@ -1,4 +1,7 @@
-use async_std::sync::{Arc, Mutex};
+use async_std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 use petgraph::{graph::NodeIndex, Graph};
 use std::{collections::HashMap, fmt};
 
@@ -45,7 +48,7 @@ pub struct Entity {
     dependencies: Vec<String>,
     graphql: GraphQL,
     name: String,
-    path: String,
+    path: PathBuf,
     raw: String,
 }
 
@@ -54,7 +57,7 @@ impl Entity {
         dependencies: Vec<String>,
         graphql: GraphQL,
         name: String,
-        path: String,
+        path: PathBuf,
         raw: String,
     ) -> Self {
         Entity {
@@ -98,7 +101,7 @@ impl fmt::Debug for Node {
 
 #[derive(Debug)]
 pub struct Data {
-    pub files: HashMap<String, String>,
+    pub files: HashMap<PathBuf, String>,
     pub graph: petgraph::Graph<Node, (NodeIndex, NodeIndex)>,
 }
 
