@@ -1,3 +1,9 @@
+//! # CraftQL
+//! TODO
+
+#![warn(missing_debug_implementations, missing_docs)]
+#![deny(nonstandard_style)]
+
 mod config;
 mod state;
 mod utils;
@@ -18,6 +24,7 @@ struct Opts {
     path: PathBuf,
 }
 
+/// asdf
 #[async_std::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
@@ -45,6 +52,7 @@ async fn main() -> Result<()> {
     // - flag to output content of one entity
     // - flag to list dependencies
     // - tests
+    // - flag to find an entity by name
 
     Ok(())
 }

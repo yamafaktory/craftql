@@ -1,1 +1,1 @@
-union SearchResult = Human | Droid | Starship
+union SearchResult @test = Human | Droid | Starship

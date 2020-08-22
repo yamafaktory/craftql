@@ -1,5 +1,5 @@
 # A character from the Star Wars universe
-interface Character {
+interface Character @test {
   # The ID of the character
   id: ID!
   # The name of the character
@@ -10,4 +10,6 @@ interface Character {
   friendsConnection(first: Int, after: ID): FriendsConnection!
   # The movies this character appears in
   appearsIn: [Episode]!
+  # Well..
+  cute: Bool! @deprecated
 }

@@ -53,7 +53,7 @@ type FriendsEdge {
   node: Character
 }
 # Information for paginating this connection
-type PageInfo {
+type PageInfo @test {
   startCursor: ID
   endCursor: ID
   hasNextPage: Boolean!
@@ -63,7 +63,7 @@ type Review {
   # The movie
   episode: Episode
   # The number of stars this review gave, 1-5
-  stars: Int!
+  stars: Int! @test
   # Comment about the movie
   commentary: String
   # Creation date
