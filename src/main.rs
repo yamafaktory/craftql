@@ -5,6 +5,7 @@
 #![deny(nonstandard_style)]
 
 mod config;
+mod extend_types;
 mod state;
 mod utils;
 
