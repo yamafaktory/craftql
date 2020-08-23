@@ -1,6 +1,6 @@
 use crate::config::ALLOWED_EXTENSIONS;
 use crate::extend_types::ExtendType;
-use crate::state::{Entity, GraphQL, GraphQLType, Node};
+use crate::state::{Entity, Node};
 
 use anyhow::Result;
 use async_std::{
@@ -11,12 +11,35 @@ use async_std::{
     prelude::*,
     sync::{Arc, Mutex},
 };
+use bat::PrettyPrinter;
 use graphql_parser::{parse_schema, schema};
 use petgraph::graph::NodeIndex;
-use std::collections::HashMap;
+use std::{collections::HashMap, process::exit};
 
 fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
+}
+
+pub async fn find_node(
+    node: String,
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+) -> Result<()> {
+    let graph = graph.lock().await;
+
+    match graph.node_indices().find(|index| graph[*index].id == *node) {
+        Some(index) => {
+            PrettyPrinter::new()
+                .input_from_bytes(&graph.node_weight(index).unwrap().entity.raw.as_bytes())
+                .language("graphql")
+                .print()
+                .unwrap();
+            Ok(())
+        }
+        None => {
+            eprintln!("Node not found");
+            exit(1);
+        }
+    }
 }
 
 /// Recursively read directories and files for a given path.
@@ -227,11 +250,10 @@ pub async fn populate_graph_from_ast(
         for dependency in inner_dependencies {
             let mut graph = graph.lock().await;
             // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
-            let maybe_index = &graph
+            if let Some(index) = *&graph
                 .node_indices()
-                .find(|index| graph[*index].id == *dependency);
-
-            if let Some(index) = *maybe_index {
+                .find(|index| graph[*index].id == *dependency)
+            {
                 &graph.update_edge(index, node_index.clone(), (index, node_index.clone()));
             }
         }

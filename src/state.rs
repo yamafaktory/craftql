@@ -49,7 +49,7 @@ pub struct Entity {
     graphql: GraphQL,
     name: String,
     path: PathBuf,
-    raw: String,
+    pub raw: String,
 }
 
 impl Entity {

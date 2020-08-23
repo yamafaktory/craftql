@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.32"
+bat = "0.15.4"
 clap = "3.0.0-beta.1"
 graphql-parser = "0.3.0"
 petgraph = "0.5.1"
