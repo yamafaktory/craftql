@@ -25,26 +25,26 @@ struct Opts {
     path: PathBuf,
 }
 
-/// asdf
 #[async_std::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     let state = State::new();
     let shared_data = state.shared;
     let shared_data_cloned = shared_data.clone();
-    let shared_data_cloned_cloned = shared_data.clone();
 
     // Walk the GraphQL files and populate the data.
-    get_files(opts.path, shared_data).await?;
+    get_files(opts.path, shared_data.files).await?;
 
     // Populate the graph
-    populate_graph_from_ast(shared_data_cloned).await?;
+    populate_graph_from_ast(
+        shared_data_cloned.dependencies,
+        shared_data_cloned.files,
+        shared_data_cloned.graph,
+    )
+    .await?;
 
-    let data = shared_data_cloned_cloned.lock().await;
-    println!(
-        "{:?}",
-        Dot::with_config(&data.graph, &[Config::EdgeNoLabel])
-    );
+    let graph = &*shared_data.graph.lock().await;
+    println!("{:?}", Dot::with_config(&graph, &[Config::EdgeNoLabel]));
 
     // TODO:
     // What should be the default? Getting a graph?

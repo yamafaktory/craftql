@@ -9,6 +9,12 @@ where
     String::from(text.as_ref())
 }
 
+/// Extend id for type extensions.
+/// Only used internally to distinguish between a type and its extension.
+fn get_extended_id(id: String) -> String {
+    format!("{}Ext", id)
+}
+
 /// Extract dependencies from any entity's directives.
 fn get_dependencies_from_directives<'a, T>(
     directives: &Vec<schema::Directive<'a, T>>,
@@ -70,6 +76,7 @@ where
 
 pub trait ExtendType {
     fn get_dependencies(&self) -> Vec<String>;
+    fn get_id(&self) -> String;
 }
 
 impl<'a, T> ExtendType for schema::EnumType<'a, T>
@@ -88,6 +95,9 @@ where
                     .flatten(),
             )
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }
 
@@ -110,6 +120,9 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
+    fn get_id(&self) -> String {
+        get_extended_id(convert_text_to_string::<T>(&self.name))
+    }
 }
 
 impl<'a, T> ExtendType for schema::InputObjectType<'a, T>
@@ -125,6 +138,9 @@ where
             // Get root directives.
             .chain(get_dependencies_from_directives(&self.directives))
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }
 
@@ -144,6 +160,9 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
+    fn get_id(&self) -> String {
+        get_extended_id(convert_text_to_string::<T>(&self.name))
+    }
 }
 
 impl<'a, T> ExtendType for schema::InterfaceType<'a, T>
@@ -159,6 +178,9 @@ where
             // Get root directives.
             .chain(get_dependencies_from_directives(&self.directives))
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }
 
@@ -177,6 +199,9 @@ where
             // Add extension's source.
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        get_extended_id(convert_text_to_string::<T>(&self.name))
     }
 }
 
@@ -199,6 +224,9 @@ where
                     .map(|directive| convert_text_to_string::<T>(&directive)),
             )
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }
 
@@ -224,6 +252,9 @@ where
             .chain(vec![String::from(self.name.as_ref())])
             .collect::<Vec<String>>()
     }
+    fn get_id(&self) -> String {
+        get_extended_id(convert_text_to_string::<T>(&self.name))
+    }
 }
 
 impl<'a, T> ExtendType for schema::ScalarType<'a, T>
@@ -233,6 +264,9 @@ where
     fn get_dependencies(&self) -> Vec<String> {
         // Get root directives.
         get_dependencies_from_directives(&self.directives)
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }
 
@@ -248,6 +282,9 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
+    fn get_id(&self) -> String {
+        get_extended_id(convert_text_to_string::<T>(&self.name))
+    }
 }
 
 impl<'a, T> ExtendType for schema::UnionType<'a, T>
@@ -262,6 +299,9 @@ where
             // Get root directives.
             .chain(get_dependencies_from_directives(&self.directives))
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }
 
@@ -280,6 +320,9 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
+    fn get_id(&self) -> String {
+        get_extended_id(convert_text_to_string::<T>(&self.name))
+    }
 }
 
 impl<'a, T> ExtendType for schema::SchemaDefinition<'a, T>
@@ -296,6 +339,10 @@ where
             })
             .collect::<Vec<String>>()
     }
+    fn get_id(&self) -> String {
+        // A Schema has no name, use a default one.
+        String::from("Schema")
+    }
 }
 
 impl<'a, T> ExtendType for schema::DirectiveDefinition<'a, T>
@@ -308,5 +355,8 @@ where
             .map(|input_value| walk_input_value(input_value))
             .flatten()
             .collect::<Vec<String>>()
+    }
+    fn get_id(&self) -> String {
+        convert_text_to_string::<T>(&self.name)
     }
 }

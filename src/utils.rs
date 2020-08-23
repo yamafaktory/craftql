@@ -1,6 +1,6 @@
 use crate::config::ALLOWED_EXTENSIONS;
 use crate::extend_types::ExtendType;
-use crate::state::{Data, Entity, GraphQL, GraphQLType, Node};
+use crate::state::{Entity, GraphQL, GraphQLType, Node};
 
 use anyhow::Result;
 use async_std::{
@@ -19,14 +19,10 @@ fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
 }
 
-fn get_extended_id(id: String) -> String {
-    format!("{}Ext", id)
-}
-
 /// Recursively read directories and files for a given path.
 pub fn get_files(
     path: PathBuf,
-    shared_data: Arc<Mutex<Data>>,
+    files: Arc<Mutex<HashMap<PathBuf, String>>>,
 ) -> Pin<Box<dyn Future<Output = Result<()>>>> {
     // Use a hack to get async recursive calls working.
     Box::pin(async move {
@@ -43,10 +39,9 @@ pub fn get_files(
                     .unwrap(),
             ) {
                 let contents = fs::read_to_string(thread_safe_path.as_ref()).await?;
-                let mut data = shared_data.lock().await;
+                let mut files = files.lock().await;
 
-                data.files
-                    .insert(thread_safe_path.as_ref().clone(), contents);
+                files.insert(thread_safe_path.as_ref().clone(), contents);
             }
 
             return Ok(());
@@ -63,11 +58,11 @@ pub fn get_files(
 
             if !is_dir && is_extension_allowed(&inner_path.extension().unwrap().to_str().unwrap()) {
                 let contents = fs::read_to_string(inner_path).await?;
-                let mut data = shared_data.lock().await;
+                let mut files = files.lock().await;
 
-                data.files.insert(inner_path_cloned, contents);
+                files.insert(inner_path_cloned, contents);
             } else {
-                get_files(inner_path, shared_data.clone()).await?;
+                get_files(inner_path, files.clone()).await?;
             }
         }
 
@@ -75,276 +70,223 @@ pub fn get_files(
     })
 }
 
+async fn add_node_and_dependencies(
+    entity: impl ExtendType,
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
+    file: &PathBuf,
+    contents: &String,
+    mapped_type: GraphQL,
+) -> Result<()> {
+    let entity_dependencies = entity.get_dependencies();
+    let mut graph = graph.lock().await;
+
+    let node_index = graph.add_node(Node::new(
+        Entity::new(
+            entity_dependencies.clone(),
+            mapped_type, // TODO: impl on ExtendType
+            entity.get_id(),
+            file.to_owned(),
+            contents.to_owned(),
+        ),
+        entity.get_id(),
+    ));
+
+    // Update dependencies.
+    let mut dependencies = dependencies.lock().await;
+    dependencies.insert(node_index, entity_dependencies);
+
+    Ok(())
+}
+
 /// Parse the files, generate an AST and walk it to populate the graph.
-pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()> {
-    let mut data = shared_data.lock().await;
-    let files = &data.files.clone();
-    // Keep track of the dependencies for edges.
-    let mut dependency_hash_map: HashMap<NodeIndex, Vec<String>> = HashMap::new();
+pub async fn populate_graph_from_ast(
+    dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
+    files: Arc<Mutex<HashMap<PathBuf, String>>>,
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+) -> Result<()> {
+    let files = files.lock().await;
 
     // Populate the nodes first.
-    for (file, contents) in files {
+    for (file, contents) in files.clone() {
         let ast = parse_schema::<String>(contents.as_str())?;
 
         // Reference: http://spec.graphql.org/draft/
         for definition in ast.definitions {
+            let graph = graph.clone();
+            let dependencies = dependencies.clone();
+
             match definition {
                 schema::Definition::TypeDefinition(type_definition) => match type_definition {
                     schema::TypeDefinition::Enum(enum_type) => {
-                        let id = enum_type.name.clone();
-                        let dependencies = enum_type.get_dependencies();
-
-                        let node_index = data.graph.add_node(Node::new(
-                            Entity::new(
-                                dependencies.clone(), // Enums don't have dependencies.
-                                GraphQL::TypeDefinition(GraphQLType::Enum),
-                                enum_type.name,
-                                file.to_owned(),
-                                contents.to_owned(),
-                            ),
-                            id,
-                        ));
-
-                        // Update dependencies.
-                        dependency_hash_map.insert(node_index, dependencies);
+                        add_node_and_dependencies(
+                            enum_type,
+                            graph,
+                            dependencies,
+                            &file,
+                            &contents,
+                            GraphQL::TypeDefinition(GraphQLType::Enum),
+                        )
+                        .await?
                     }
 
                     schema::TypeDefinition::InputObject(input_object_type) => {
-                        let id = input_object_type.name.clone();
-                        let dependencies = input_object_type.get_dependencies();
-
-                        let node_index = data.graph.add_node(Node::new(
-                            Entity::new(
-                                dependencies.clone(),
-                                GraphQL::TypeDefinition(GraphQLType::InputObject),
-                                input_object_type.name,
-                                file.to_owned(),
-                                contents.to_owned(),
-                            ),
-                            id,
-                        ));
-
-                        dependency_hash_map.insert(node_index, dependencies);
+                        add_node_and_dependencies(
+                            input_object_type,
+                            graph,
+                            dependencies,
+                            &file,
+                            &contents,
+                            GraphQL::TypeDefinition(GraphQLType::InputObject),
+                        )
+                        .await?
                     }
 
                     schema::TypeDefinition::Interface(interface_type) => {
-                        let id = interface_type.name.clone();
-                        let dependencies = interface_type.get_dependencies();
-
-                        let node_index = data.graph.add_node(Node::new(
-                            Entity::new(
-                                dependencies.clone(),
-                                GraphQL::TypeDefinition(GraphQLType::Interface),
-                                interface_type.name,
-                                file.to_owned(),
-                                contents.to_owned(),
-                            ),
-                            id,
-                        ));
-
-                        dependency_hash_map.insert(node_index, dependencies);
+                        add_node_and_dependencies(
+                            interface_type,
+                            graph,
+                            dependencies,
+                            &file,
+                            &contents,
+                            GraphQL::TypeDefinition(GraphQLType::Interface),
+                        )
+                        .await?
                     }
 
                     schema::TypeDefinition::Object(object_type) => {
-                        let id = object_type.name.clone();
-                        let dependencies = object_type.get_dependencies();
-
-                        let node_index = data.graph.add_node(Node::new(
-                            Entity::new(
-                                dependencies.clone(),
-                                GraphQL::TypeDefinition(GraphQLType::Object),
-                                object_type.name,
-                                file.to_owned(),
-                                contents.to_owned(),
-                            ),
-                            id,
-                        ));
-
-                        dependency_hash_map.insert(node_index, dependencies);
+                        add_node_and_dependencies(
+                            object_type,
+                            graph,
+                            dependencies,
+                            &file,
+                            &contents,
+                            GraphQL::TypeDefinition(GraphQLType::Object),
+                        )
+                        .await?
                     }
 
                     schema::TypeDefinition::Scalar(scalar_type) => {
-                        let id = scalar_type.name.clone();
-                        let dependencies = scalar_type.get_dependencies();
-
-                        let node_index = data.graph.add_node(Node::new(
-                            Entity::new(
-                                dependencies.clone(),
-                                GraphQL::TypeDefinition(GraphQLType::Scalar),
-                                scalar_type.name,
-                                file.to_owned(),
-                                contents.to_owned(),
-                            ),
-                            id,
-                        ));
-
-                        dependency_hash_map.insert(node_index, dependencies);
+                        add_node_and_dependencies(
+                            scalar_type,
+                            graph,
+                            dependencies,
+                            &file,
+                            &contents,
+                            GraphQL::TypeDefinition(GraphQLType::Scalar),
+                        )
+                        .await?
                     }
 
                     schema::TypeDefinition::Union(union_type) => {
-                        let id = union_type.name.clone();
-                        let dependencies = union_type.get_dependencies();
-
-                        let node_index = data.graph.add_node(Node::new(
-                            Entity::new(
-                                dependencies.clone(),
-                                GraphQL::TypeDefinition(GraphQLType::Union),
-                                union_type.name,
-                                file.to_owned(),
-                                contents.to_owned(),
-                            ),
-                            id,
-                        ));
-
-                        dependency_hash_map.insert(node_index, dependencies);
+                        add_node_and_dependencies(
+                            union_type,
+                            graph,
+                            dependencies,
+                            &file,
+                            &contents,
+                            GraphQL::TypeDefinition(GraphQLType::Union),
+                        )
+                        .await?
                     }
                 },
 
                 schema::Definition::SchemaDefinition(schema_definition) => {
-                    // A Schema has no name, use a default one.
-                    let id = String::from("Schema");
-                    let dependencies = schema_definition.get_dependencies();
-
-                    let node_index = data.graph.add_node(Node::new(
-                        Entity::new(
-                            dependencies.clone(),
-                            GraphQL::Schema,
-                            String::from("Schema"),
-                            file.to_owned(),
-                            contents.to_owned(),
-                        ),
-                        id,
-                    ));
-
-                    dependency_hash_map.insert(node_index, dependencies);
+                    add_node_and_dependencies(
+                        schema_definition,
+                        graph,
+                        dependencies,
+                        &file,
+                        &contents,
+                        GraphQL::Schema,
+                    )
+                    .await?
                 }
 
                 schema::Definition::DirectiveDefinition(directive_definition) => {
-                    let id = directive_definition.name.clone();
-                    let dependencies = directive_definition.get_dependencies();
-
-                    let node_index = data.graph.add_node(Node::new(
-                        Entity::new(
-                            dependencies.clone(),
-                            GraphQL::Directive,
-                            directive_definition.name,
-                            file.to_owned(),
-                            contents.to_owned(),
-                        ),
-                        id,
-                    ));
-
-                    dependency_hash_map.insert(node_index, dependencies);
+                    add_node_and_dependencies(
+                        directive_definition,
+                        graph,
+                        dependencies,
+                        &file,
+                        &contents,
+                        GraphQL::Directive,
+                    )
+                    .await?
                 }
 
                 schema::Definition::TypeExtension(type_extension) => {
                     match type_extension {
                         schema::TypeExtension::Object(object_type_extension) => {
-                            let id = object_type_extension.name.clone();
-                            let dependencies = object_type_extension.get_dependencies();
-
-                            let node_index = data.graph.add_node(Node::new(
-                                Entity::new(
-                                    dependencies.clone(),
-                                    GraphQL::TypeExtension(GraphQLType::Object),
-                                    object_type_extension.name,
-                                    file.to_owned(),
-                                    contents.to_owned(),
-                                ),
-                                get_extended_id(id),
-                            ));
-
-                            dependency_hash_map.insert(node_index, dependencies);
+                            add_node_and_dependencies(
+                                object_type_extension,
+                                graph,
+                                dependencies,
+                                &file,
+                                &contents,
+                                GraphQL::TypeExtension(GraphQLType::Object),
+                            )
+                            .await?
                         }
 
                         schema::TypeExtension::Scalar(scalar_type_extension) => {
-                            let id = scalar_type_extension.name.clone();
-                            let dependencies = scalar_type_extension.get_dependencies();
-
-                            let node_index = data.graph.add_node(Node::new(
-                                Entity::new(
-                                    dependencies.clone(),
-                                    GraphQL::TypeExtension(GraphQLType::Scalar),
-                                    scalar_type_extension.name,
-                                    file.to_owned(),
-                                    contents.to_owned(),
-                                ),
-                                get_extended_id(id),
-                            ));
-
-                            dependency_hash_map.insert(node_index, dependencies);
+                            add_node_and_dependencies(
+                                scalar_type_extension,
+                                graph,
+                                dependencies,
+                                &file,
+                                &contents,
+                                GraphQL::TypeExtension(GraphQLType::Scalar),
+                            )
+                            .await?
                         }
 
                         schema::TypeExtension::Interface(interface_type_extension) => {
-                            let id = interface_type_extension.name.clone();
-                            let dependencies = interface_type_extension.get_dependencies();
-
-                            let node_index = data.graph.add_node(Node::new(
-                                Entity::new(
-                                    dependencies.clone(),
-                                    GraphQL::TypeExtension(GraphQLType::Scalar),
-                                    interface_type_extension.name,
-                                    file.to_owned(),
-                                    contents.to_owned(),
-                                ),
-                                get_extended_id(id),
-                            ));
-
-                            dependency_hash_map.insert(node_index, dependencies);
+                            add_node_and_dependencies(
+                                interface_type_extension,
+                                graph,
+                                dependencies,
+                                &file,
+                                &contents,
+                                GraphQL::TypeExtension(GraphQLType::Scalar),
+                            )
+                            .await?
                         }
 
                         schema::TypeExtension::Union(union_type_extension) => {
-                            let id = union_type_extension.name.clone();
-                            let dependencies = union_type_extension.get_dependencies();
-
-                            let node_index = data.graph.add_node(Node::new(
-                                Entity::new(
-                                    dependencies.clone(),
-                                    GraphQL::TypeExtension(GraphQLType::Union),
-                                    union_type_extension.name,
-                                    file.to_owned(),
-                                    contents.to_owned(),
-                                ),
-                                get_extended_id(id),
-                            ));
-
-                            dependency_hash_map.insert(node_index, dependencies);
+                            add_node_and_dependencies(
+                                union_type_extension,
+                                graph,
+                                dependencies,
+                                &file,
+                                &contents,
+                                GraphQL::TypeExtension(GraphQLType::Union),
+                            )
+                            .await?
                         }
 
                         schema::TypeExtension::Enum(enum_type_extension) => {
-                            let id = enum_type_extension.name.clone();
-                            let dependencies = enum_type_extension.get_dependencies();
-
-                            let node_index = data.graph.add_node(Node::new(
-                                Entity::new(
-                                    dependencies.clone(),
-                                    GraphQL::TypeExtension(GraphQLType::Enum),
-                                    enum_type_extension.name,
-                                    file.to_owned(),
-                                    contents.to_owned(),
-                                ),
-                                get_extended_id(id),
-                            ));
-
-                            dependency_hash_map.insert(node_index, dependencies);
+                            add_node_and_dependencies(
+                                enum_type_extension,
+                                graph,
+                                dependencies,
+                                &file,
+                                &contents,
+                                GraphQL::TypeExtension(GraphQLType::Enum),
+                            )
+                            .await?
                         }
 
                         schema::TypeExtension::InputObject(input_object_type_extension) => {
-                            let id = input_object_type_extension.name.clone();
-                            let dependencies = input_object_type_extension.get_dependencies();
-
-                            let node_index = data.graph.add_node(Node::new(
-                                Entity::new(
-                                    dependencies.clone(),
-                                    GraphQL::TypeExtension(GraphQLType::InputObject),
-                                    input_object_type_extension.name,
-                                    file.to_owned(),
-                                    contents.to_owned(),
-                                ),
-                                get_extended_id(id),
-                            ));
-
-                            dependency_hash_map.insert(node_index, dependencies);
+                            add_node_and_dependencies(
+                                input_object_type_extension,
+                                graph,
+                                dependencies,
+                                &file,
+                                &contents,
+                                GraphQL::TypeExtension(GraphQLType::InputObject),
+                            )
+                            .await?
                         }
                     };
                 }
@@ -353,18 +295,18 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
     }
 
     // Populate the edges.
-    for (node_index, dependencies) in dependency_hash_map {
-        for dependency in dependencies {
+    let dependencies = &*dependencies.lock().await;
+
+    for (node_index, inner_dependencies) in dependencies {
+        for dependency in inner_dependencies {
+            let mut graph = graph.lock().await;
             // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
-            let maybe_index = &data
-                .graph
+            let maybe_index = &graph
                 .node_indices()
-                .find(|index| data.graph[*index].id == dependency);
+                .find(|index| graph[*index].id == *dependency);
 
             if let Some(index) = *maybe_index {
-                &data
-                    .graph
-                    .update_edge(index, node_index, (index, node_index));
+                &graph.update_edge(index, node_index.clone(), (index, node_index.clone()));
             }
         }
     }

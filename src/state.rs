@@ -7,7 +7,7 @@ use std::{collections::HashMap, fmt};
 
 #[derive(Debug)]
 pub struct State {
-    pub shared: Arc<Mutex<Data>>,
+    pub shared: Data,
 }
 
 /// Core GraphQL types used for definitions and extensions.
@@ -99,19 +99,22 @@ impl fmt::Debug for Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Data {
-    pub files: HashMap<PathBuf, String>,
-    pub graph: petgraph::Graph<Node, (NodeIndex, NodeIndex)>,
+    // Keep track of the dependencies for edges.
+    pub dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
+    pub files: Arc<Mutex<HashMap<PathBuf, String>>>,
+    pub graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
 }
 
 impl State {
     pub fn new() -> Self {
         State {
-            shared: Arc::new(Mutex::new(Data {
-                files: HashMap::new(),
-                graph: Graph::<Node, (NodeIndex, NodeIndex)>::new(),
-            })),
+            shared: Data {
+                dependencies: Arc::new(Mutex::new(HashMap::new())),
+                files: Arc::new(Mutex::new(HashMap::new())),
+                graph: Arc::new(Mutex::new(Graph::<Node, (NodeIndex, NodeIndex)>::new())),
+            },
         }
     }
 }
