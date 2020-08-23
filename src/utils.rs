@@ -86,6 +86,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
     for (file, contents) in files {
         let ast = parse_schema::<String>(contents.as_str())?;
 
+        // Reference: http://spec.graphql.org/draft/
         for definition in ast.definitions {
             match definition {
                 schema::Definition::TypeDefinition(type_definition) => match type_definition {
@@ -164,10 +165,11 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
 
                     schema::TypeDefinition::Scalar(scalar_type) => {
                         let id = scalar_type.name.clone();
+                        let dependencies = scalar_type.get_dependencies();
 
-                        data.graph.add_node(Node::new(
+                        let node_index = data.graph.add_node(Node::new(
                             Entity::new(
-                                vec![],
+                                dependencies.clone(),
                                 GraphQL::TypeDefinition(GraphQLType::Scalar),
                                 scalar_type.name,
                                 file.to_owned(),
@@ -175,22 +177,14 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             ),
                             id,
                         ));
+
+                        dependency_hash_map.insert(node_index, dependencies);
                     }
 
                     schema::TypeDefinition::Union(union_type) => {
                         let id = union_type.name.clone();
-                        let dependencies = union_type
-                            .types
-                            .into_iter()
-                            .chain(
-                                union_type
-                                    .directives
-                                    .iter()
-                                    .map(|directive| directive.name.clone()),
-                            )
-                            .collect::<Vec<String>>();
+                        let dependencies = union_type.get_dependencies();
 
-                        // Inject entity as node into the graph.
                         let node_index = data.graph.add_node(Node::new(
                             Entity::new(
                                 dependencies.clone(),
@@ -202,7 +196,6 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                             id,
                         ));
 
-                        // Update dependencies.
                         dependency_hash_map.insert(node_index, dependencies);
                     }
                 },
@@ -210,20 +203,11 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                 schema::Definition::SchemaDefinition(schema_definition) => {
                     // A Schema has no name, use a default one.
                     let id = String::from("Schema");
-                    // A schema can only have a query, a mutation and a subscription.
-                    let fields = vec![
-                        schema_definition.query,
-                        schema_definition.mutation,
-                        schema_definition.subscription,
-                    ]
-                    .into_iter()
-                    .filter_map(|field| field)
-                    .collect::<Vec<String>>();
+                    let dependencies = schema_definition.get_dependencies();
 
-                    // Inject entity as node into the graph.
                     let node_index = data.graph.add_node(Node::new(
                         Entity::new(
-                            fields.clone(),
+                            dependencies.clone(),
                             GraphQL::Schema,
                             String::from("Schema"),
                             file.to_owned(),
@@ -232,23 +216,16 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         id,
                     ));
 
-                    // Update dependencies.
-                    dependency_hash_map.insert(node_index, fields);
+                    dependency_hash_map.insert(node_index, dependencies);
                 }
 
                 schema::Definition::DirectiveDefinition(directive_definition) => {
                     let id = directive_definition.name.clone();
-                    let fields = directive_definition
-                        .arguments
-                        .iter()
-                        .map(|input_value| walk_input_value(input_value))
-                        .flatten()
-                        .collect::<Vec<String>>();
+                    let dependencies = directive_definition.get_dependencies();
 
-                    // Inject entity as node into the graph.
                     let node_index = data.graph.add_node(Node::new(
                         Entity::new(
-                            fields.clone(),
+                            dependencies.clone(),
                             GraphQL::Directive,
                             directive_definition.name,
                             file.to_owned(),
@@ -257,12 +234,10 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                         id,
                     ));
 
-                    // Update dependencies.
-                    dependency_hash_map.insert(node_index, fields);
+                    dependency_hash_map.insert(node_index, dependencies);
                 }
 
                 schema::Definition::TypeExtension(type_extension) => {
-                    // http://spec.graphql.org/draft/#SchemaExtension
                     match type_extension {
                         schema::TypeExtension::Object(object_type_extension) => {
                             let id = object_type_extension.name.clone();
@@ -284,13 +259,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
 
                         schema::TypeExtension::Scalar(scalar_type_extension) => {
                             let id = scalar_type_extension.name.clone();
-
-                            let dependencies = scalar_type_extension
-                                .directives
-                                .iter()
-                                .map(|directive| directive.name.clone())
-                                .chain(vec![scalar_type_extension.name.clone()])
-                                .collect::<Vec<String>>();
+                            let dependencies = scalar_type_extension.get_dependencies();
 
                             let node_index = data.graph.add_node(Node::new(
                                 Entity::new(
@@ -303,7 +272,6 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
                                 get_extended_id(id),
                             ));
 
-                            // Update dependencies.
                             dependency_hash_map.insert(node_index, dependencies);
                         }
 
@@ -327,9 +295,7 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
 
                         schema::TypeExtension::Union(union_type_extension) => {
                             let id = union_type_extension.name.clone();
-                            let mut dependencies = union_type_extension.types;
-
-                            dependencies.extend(vec![union_type_extension.name.clone()]);
+                            let dependencies = union_type_extension.get_dependencies();
 
                             let node_index = data.graph.add_node(Node::new(
                                 Entity::new(
@@ -404,30 +370,4 @@ pub async fn populate_graph_from_ast(shared_data: Arc<Mutex<Data>>) -> Result<()
     }
 
     Ok(())
-}
-
-/// Recursively walk a field type to get the inner String value.
-fn walk_field_type(field_type: &schema::Type<String>) -> String {
-    match field_type {
-        schema::Type::NamedType(name) => name.clone(),
-        schema::Type::ListType(field_type) => {
-            // Field type is boxed, need to unbox.
-            walk_field_type(field_type.as_ref())
-        }
-        schema::Type::NonNullType(field_type) => {
-            // Same here.
-            walk_field_type(field_type.as_ref())
-        }
-    }
-}
-
-/// Recursively walk an input to get the inner String value.
-fn walk_input_value(input_value: &schema::InputValue<String>) -> Vec<String> {
-    input_value
-        .directives
-        .iter()
-        .map(|directive| directive.name.clone())
-        .into_iter()
-        .chain(vec![walk_field_type(&input_value.value_type)])
-        .collect::<Vec<String>>()
 }
