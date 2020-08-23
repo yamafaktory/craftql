@@ -74,17 +74,16 @@ async fn add_node_and_dependencies(
     entity: impl ExtendType,
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
     dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
-    file: &PathBuf,
-    contents: &String,
-    mapped_type: GraphQL,
+    file: &(PathBuf, String),
 ) -> Result<()> {
     let entity_dependencies = entity.get_dependencies();
     let mut graph = graph.lock().await;
+    let (file, contents) = file;
 
     let node_index = graph.add_node(Node::new(
         Entity::new(
             entity_dependencies.clone(),
-            mapped_type, // TODO: impl on ExtendType
+            entity.get_mapped_type(), // TODO: impl on ExtendType
             entity.get_id(),
             file.to_owned(),
             contents.to_owned(),
@@ -108,8 +107,8 @@ pub async fn populate_graph_from_ast(
     let files = files.lock().await;
 
     // Populate the nodes first.
-    for (file, contents) in files.clone() {
-        let ast = parse_schema::<String>(contents.as_str())?;
+    for file in files.clone() {
+        let ast = parse_schema::<String>(file.1.as_str())?;
 
         // Reference: http://spec.graphql.org/draft/
         for definition in ast.definitions {
@@ -119,100 +118,39 @@ pub async fn populate_graph_from_ast(
             match definition {
                 schema::Definition::TypeDefinition(type_definition) => match type_definition {
                     schema::TypeDefinition::Enum(enum_type) => {
-                        add_node_and_dependencies(
-                            enum_type,
-                            graph,
-                            dependencies,
-                            &file,
-                            &contents,
-                            GraphQL::TypeDefinition(GraphQLType::Enum),
-                        )
-                        .await?
+                        add_node_and_dependencies(enum_type, graph, dependencies, &file).await?
                     }
 
                     schema::TypeDefinition::InputObject(input_object_type) => {
-                        add_node_and_dependencies(
-                            input_object_type,
-                            graph,
-                            dependencies,
-                            &file,
-                            &contents,
-                            GraphQL::TypeDefinition(GraphQLType::InputObject),
-                        )
-                        .await?
+                        add_node_and_dependencies(input_object_type, graph, dependencies, &file)
+                            .await?
                     }
 
                     schema::TypeDefinition::Interface(interface_type) => {
-                        add_node_and_dependencies(
-                            interface_type,
-                            graph,
-                            dependencies,
-                            &file,
-                            &contents,
-                            GraphQL::TypeDefinition(GraphQLType::Interface),
-                        )
-                        .await?
+                        add_node_and_dependencies(interface_type, graph, dependencies, &file)
+                            .await?
                     }
 
                     schema::TypeDefinition::Object(object_type) => {
-                        add_node_and_dependencies(
-                            object_type,
-                            graph,
-                            dependencies,
-                            &file,
-                            &contents,
-                            GraphQL::TypeDefinition(GraphQLType::Object),
-                        )
-                        .await?
+                        add_node_and_dependencies(object_type, graph, dependencies, &file).await?
                     }
 
                     schema::TypeDefinition::Scalar(scalar_type) => {
-                        add_node_and_dependencies(
-                            scalar_type,
-                            graph,
-                            dependencies,
-                            &file,
-                            &contents,
-                            GraphQL::TypeDefinition(GraphQLType::Scalar),
-                        )
-                        .await?
+                        add_node_and_dependencies(scalar_type, graph, dependencies, &file).await?
                     }
 
                     schema::TypeDefinition::Union(union_type) => {
-                        add_node_and_dependencies(
-                            union_type,
-                            graph,
-                            dependencies,
-                            &file,
-                            &contents,
-                            GraphQL::TypeDefinition(GraphQLType::Union),
-                        )
-                        .await?
+                        add_node_and_dependencies(union_type, graph, dependencies, &file).await?
                     }
                 },
 
                 schema::Definition::SchemaDefinition(schema_definition) => {
-                    add_node_and_dependencies(
-                        schema_definition,
-                        graph,
-                        dependencies,
-                        &file,
-                        &contents,
-                        GraphQL::Schema,
-                    )
-                    .await?
+                    add_node_and_dependencies(schema_definition, graph, dependencies, &file).await?
                 }
 
                 schema::Definition::DirectiveDefinition(directive_definition) => {
-                    add_node_and_dependencies(
-                        directive_definition,
-                        graph,
-                        dependencies,
-                        &file,
-                        &contents,
-                        GraphQL::Directive,
-                    )
-                    .await?
+                    add_node_and_dependencies(directive_definition, graph, dependencies, &file)
+                        .await?
                 }
 
                 schema::Definition::TypeExtension(type_extension) => {
@@ -223,8 +161,6 @@ pub async fn populate_graph_from_ast(
                                 graph,
                                 dependencies,
                                 &file,
-                                &contents,
-                                GraphQL::TypeExtension(GraphQLType::Object),
                             )
                             .await?
                         }
@@ -235,8 +171,6 @@ pub async fn populate_graph_from_ast(
                                 graph,
                                 dependencies,
                                 &file,
-                                &contents,
-                                GraphQL::TypeExtension(GraphQLType::Scalar),
                             )
                             .await?
                         }
@@ -247,8 +181,6 @@ pub async fn populate_graph_from_ast(
                                 graph,
                                 dependencies,
                                 &file,
-                                &contents,
-                                GraphQL::TypeExtension(GraphQLType::Scalar),
                             )
                             .await?
                         }
@@ -259,8 +191,6 @@ pub async fn populate_graph_from_ast(
                                 graph,
                                 dependencies,
                                 &file,
-                                &contents,
-                                GraphQL::TypeExtension(GraphQLType::Union),
                             )
                             .await?
                         }
@@ -271,8 +201,6 @@ pub async fn populate_graph_from_ast(
                                 graph,
                                 dependencies,
                                 &file,
-                                &contents,
-                                GraphQL::TypeExtension(GraphQLType::Enum),
                             )
                             .await?
                         }
@@ -283,8 +211,6 @@ pub async fn populate_graph_from_ast(
                                 graph,
                                 dependencies,
                                 &file,
-                                &contents,
-                                GraphQL::TypeExtension(GraphQLType::InputObject),
                             )
                             .await?
                         }
