@@ -46,9 +46,9 @@ where
 /// Represents a GraphQL entity.
 pub struct Entity {
     dependencies: Vec<String>,
-    graphql: GraphQL,
-    name: String,
-    path: PathBuf,
+    pub graphql: GraphQL,
+    pub name: String,
+    pub path: PathBuf,
     pub raw: String,
 }
 

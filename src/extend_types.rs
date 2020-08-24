@@ -80,6 +80,7 @@ pub trait ExtendType {
     fn get_dependencies(&self) -> Vec<String>;
     fn get_id(&self) -> String;
     fn get_mapped_type(&self) -> GraphQL;
+    fn get(&self) -> String;
 }
 
 impl<'a, T> ExtendType for schema::EnumType<'a, T>
@@ -104,6 +105,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Enum)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -132,6 +136,9 @@ where
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Enum)
     }
+    fn get(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl<'a, T> ExtendType for schema::InputObjectType<'a, T>
@@ -153,6 +160,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::InputObject)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -178,6 +188,9 @@ where
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::InputObject)
     }
+    fn get(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl<'a, T> ExtendType for schema::InterfaceType<'a, T>
@@ -199,6 +212,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Interface)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -223,6 +239,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Interface)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -251,6 +270,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Object)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -282,6 +304,9 @@ where
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Object)
     }
+    fn get(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl<'a, T> ExtendType for schema::ScalarType<'a, T>
@@ -297,6 +322,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Scalar)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -318,6 +346,9 @@ where
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Scalar)
     }
+    fn get(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl<'a, T> ExtendType for schema::UnionType<'a, T>
@@ -338,6 +369,9 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Union)
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -362,6 +396,9 @@ where
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Union)
     }
+    fn get(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl<'a, T> ExtendType for schema::SchemaDefinition<'a, T>
@@ -380,10 +417,13 @@ where
     }
     fn get_id(&self) -> String {
         // A Schema has no name, use a default one.
-        String::from("Schema")
+        String::from("schema")
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::Schema
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -403,5 +443,8 @@ where
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::Directive
+    }
+    fn get(&self) -> String {
+        self.to_string()
     }
 }

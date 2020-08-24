@@ -1,6 +1,6 @@
 use crate::config::ALLOWED_EXTENSIONS;
 use crate::extend_types::ExtendType;
-use crate::state::{Entity, Node};
+use crate::state::{Entity, GraphQL, GraphQLType, Node};
 
 use anyhow::Result;
 use async_std::{
@@ -11,15 +11,41 @@ use async_std::{
     prelude::*,
     sync::{Arc, Mutex},
 };
-use bat::PrettyPrinter;
 use graphql_parser::{parse_schema, schema};
-use petgraph::graph::NodeIndex;
+use petgraph::{graph::NodeIndex, Direction::Outgoing};
 use std::{collections::HashMap, process::exit};
 
+/// Check if a file extension is allowed.
 fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
 }
 
+/// Find orphans node and display them.
+pub async fn find_orphans(
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+) -> Result<()> {
+    let graph = graph.lock().await;
+
+    let externals = graph.externals(Outgoing);
+
+    for index in externals {
+        let entity = &graph.node_weight(index).unwrap().entity;
+
+        match &entity.graphql {
+            GraphQL::Schema => {}
+            _ => {
+                println!(
+                    "{}",
+                    format!("\n# {}\n{}", entity.path.to_string_lossy(), entity.raw) // TODO: impl!
+                );
+            }
+        };
+    }
+
+    Ok(())
+}
+
+/// Find a node by name, display it with syntax highlighting or exit.
 pub async fn find_node(
     node: String,
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
@@ -28,15 +54,17 @@ pub async fn find_node(
 
     match graph.node_indices().find(|index| graph[*index].id == *node) {
         Some(index) => {
-            PrettyPrinter::new()
-                .input_from_bytes(&graph.node_weight(index).unwrap().entity.raw.as_bytes())
-                .language("graphql")
-                .print()
-                .unwrap();
+            let entity = &graph.node_weight(index).unwrap().entity;
+
+            println!(
+                "{}",
+                format!("\n# {}\n{}", entity.path.to_string_lossy(), entity.raw)
+            );
+
             Ok(())
         }
         None => {
-            eprintln!("Node not found");
+            eprintln!("Node {} not found", node);
             exit(1);
         }
     }
@@ -101,15 +129,14 @@ async fn add_node_and_dependencies(
 ) -> Result<()> {
     let entity_dependencies = entity.get_dependencies();
     let mut graph = graph.lock().await;
-    let (file, contents) = file;
 
     let node_index = graph.add_node(Node::new(
         Entity::new(
             entity_dependencies.clone(),
             entity.get_mapped_type(), // TODO: impl on ExtendType
             entity.get_id(),
-            file.to_owned(),
-            contents.to_owned(),
+            file.0.to_owned(),
+            entity.get(),
         ),
         entity.get_id(),
     ));
@@ -254,7 +281,20 @@ pub async fn populate_graph_from_ast(
                 .node_indices()
                 .find(|index| graph[*index].id == *dependency)
             {
-                &graph.update_edge(index, node_index.clone(), (index, node_index.clone()));
+                match &graph[node_index.clone()].entity.graphql {
+                    // Reverse edge for extension types.
+                    GraphQL::TypeExtension(GraphQLType::Enum)
+                    | GraphQL::TypeExtension(GraphQLType::InputObject)
+                    | GraphQL::TypeExtension(GraphQLType::Interface)
+                    | GraphQL::TypeExtension(GraphQLType::Object)
+                    | GraphQL::TypeExtension(GraphQLType::Scalar)
+                    | GraphQL::TypeExtension(GraphQLType::Union) => {
+                        &graph.update_edge(node_index.clone(), index, (node_index.clone(), index));
+                    }
+                    _ => {
+                        &graph.update_edge(index, node_index.clone(), (index, node_index.clone()));
+                    }
+                };
             }
         }
     }

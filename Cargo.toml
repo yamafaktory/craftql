@@ -1,12 +1,27 @@
 [package]
-name = "craftql"
-version = "0.1.0"
 authors = ["yamafaktory <yamafaktory@gmail.com>"]
+categories = ["command-line-utilities"]
+description = "A CLI tool to manipulate GraphQL schemas and to output a graph data structure as a graphviz .dot format"
 edition = "2018"
+exclude = [".github", "rustfmt.toml"]
+keywords = [
+    "dot",
+    "graph",
+    "graphviz",
+    "graphql",
+    "schema",
+    "cli",
+    "query",
+    "terminal",
+    "tool"
+]
+license = "MIT"
+name = "craftql"
+repository = "https://github.com/yamafaktory/craftql"
+version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0.32"
-bat = "0.15.4"
 clap = "3.0.0-beta.1"
 graphql-parser = "0.3.0"
 petgraph = "0.5.1"
@@ -14,3 +29,9 @@ petgraph = "0.5.1"
 [dependencies.async-std]
 version = "1.6.3"
 features = ["attributes", "unstable"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 'z'
+panic = 'abort'
