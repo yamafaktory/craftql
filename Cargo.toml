@@ -4,17 +4,7 @@ categories = ["command-line-utilities"]
 description = "A CLI tool to manipulate GraphQL schemas and to output a graph data structure as a graphviz .dot format"
 edition = "2018"
 exclude = [".github", "rustfmt.toml"]
-keywords = [
-    "dot",
-    "graph",
-    "graphviz",
-    "graphql",
-    "schema",
-    "cli",
-    "query",
-    "terminal",
-    "tool"
-]
+keywords = ["graph", "graphviz", "graphql", "cli", "terminal"]
 license = "MIT"
 name = "craftql"
 repository = "https://github.com/yamafaktory/craftql"
