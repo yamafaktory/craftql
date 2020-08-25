@@ -5,7 +5,7 @@
 ## Installation
 
 ```sh
-cargo install jql
+cargo install craftql
 ```
 
 ## Usage
