@@ -91,15 +91,13 @@ pub fn get_files(
         let thread_safe_path = Arc::new(path);
         let file_or_dir = fs::metadata(thread_safe_path.as_ref()).await?;
         let file_type = file_or_dir.file_type();
+        let extension = match Path::new(thread_safe_path.as_ref()).extension() {
+            Some(extension) => extension.to_str().unwrap(),
+            None => "",
+        };
 
         if file_type.is_file() {
-            if is_extension_allowed(
-                Path::new(thread_safe_path.as_ref())
-                    .extension()
-                    .unwrap()
-                    .to_str()
-                    .unwrap(),
-            ) {
+            if is_extension_allowed(extension) {
                 let contents = fs::read_to_string(thread_safe_path.as_ref()).await?;
                 let mut files = files.lock().await;
 
@@ -117,8 +115,12 @@ pub fn get_files(
             let inner_path_cloned = inner_path.clone();
             let metadata = entry.clone().metadata().await?;
             let is_dir = metadata.is_dir();
+            let extension = match &inner_path.extension() {
+                Some(extension) => extension.to_str().unwrap(),
+                None => "",
+            };
 
-            if !is_dir && is_extension_allowed(&inner_path.extension().unwrap().to_str().unwrap()) {
+            if !is_dir && is_extension_allowed(extension) {
                 let contents = fs::read_to_string(inner_path).await?;
                 let mut files = files.lock().await;
 
