@@ -25,14 +25,25 @@ pub async fn find_orphans(
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
 ) -> Result<()> {
     let graph = graph.lock().await;
-
     let externals = graph.externals(Outgoing);
+    let has_root_schema = graph
+        .node_indices()
+        .find(|index| graph[*index].id == "schema")
+        .is_some();
 
     for index in externals {
         let entity = &graph.node_weight(index).unwrap().entity;
 
-        match &entity.graphql {
+        match entity.graphql {
+            // Skip root schema has it can't have outgoing edges.
             GraphQL::Schema => {}
+            // Skip Mutation, Query and Subscription if no root schema is defined
+            // as those nodes can't have outgoing edges.
+            GraphQL::TypeDefinition(GraphQLType::Object)
+                if (!has_root_schema
+                    && (entity.name == String::from("Mutation")
+                        || entity.name == String::from("Query")
+                        || entity.name == String::from("Subscription"))) => {}
             _ => {
                 println!(
                     "{}",
