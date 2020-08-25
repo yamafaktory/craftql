@@ -8,7 +8,7 @@ keywords = ["graph", "graphviz", "graphql", "cli", "terminal"]
 license = "MIT"
 name = "craftql"
 repository = "https://github.com/yamafaktory/craftql"
-version = "0.1.1-alpha.0"
+version = "0.1.1"
 
 [dependencies]
 anyhow = "1.0.32"
