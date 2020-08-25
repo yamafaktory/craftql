@@ -135,7 +135,7 @@ interface Character @test {
 }
 ```
 
-### Find and display one node
+### Find and display multiple nodes
 
 ```sh
 craftql tests/fixtures --nodes Character Episode
