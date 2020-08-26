@@ -80,11 +80,17 @@ impl Entity {
 // Used in graph generation.
 impl fmt::Debug for Entity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} ({:?}) {:?}",
-            self.name, self.graphql, self.dependencies
-        )
+        if self.dependencies.is_empty() {
+            write!(f, "{} ({:?})", self.name, self.graphql)
+        } else {
+            write!(
+                f,
+                "{} ({:?})\n\n[{}]",
+                self.name,
+                self.graphql,
+                self.dependencies.join(", ")
+            )
+        }
     }
 }
 
