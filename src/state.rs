@@ -47,6 +47,7 @@ where
 pub struct Entity {
     dependencies: Vec<String>,
     pub graphql: GraphQL,
+    pub id: String,
     pub name: String,
     pub path: PathBuf,
     pub raw: String,
@@ -56,6 +57,7 @@ impl Entity {
     pub fn new(
         dependencies: Vec<String>,
         graphql: GraphQL,
+        id: Option<String>,
         name: String,
         path: PathBuf,
         raw: String,
@@ -63,6 +65,11 @@ impl Entity {
         Entity {
             dependencies,
             graphql,
+            // If no custom id is provided, use the name.
+            id: match id {
+                Some(id) => id,
+                None => name.clone(),
+            },
             name,
             path,
             raw,
@@ -70,6 +77,7 @@ impl Entity {
     }
 }
 
+// Used in graph generation.
 impl fmt::Debug for Entity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -77,6 +85,13 @@ impl fmt::Debug for Entity {
             "{} ({:?}) {:?}",
             self.name, self.graphql, self.dependencies
         )
+    }
+}
+
+// Used with flags like --node.
+impl fmt::Display for Entity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\n# {}\n{}", self.path.to_string_lossy(), self.raw)
     }
 }
 

@@ -14,7 +14,7 @@ where
 /// Extend id for type extensions.
 /// Only used internally to distinguish between a type and its extension.
 fn get_extended_id(id: String) -> String {
-    format!("{}Ext", id)
+    format!("{}__", id)
 }
 
 /// Extract dependencies from any entity's directives.
@@ -78,9 +78,9 @@ where
 
 pub trait ExtendType {
     fn get_dependencies(&self) -> Vec<String>;
-    fn get_id(&self) -> String;
+    fn get_id_and_name(&self) -> (Option<String>, String);
     fn get_mapped_type(&self) -> GraphQL;
-    fn get(&self) -> String;
+    fn get_raw(&self) -> String;
 }
 
 impl<'a, T> ExtendType for schema::EnumType<'a, T>
@@ -100,13 +100,14 @@ where
             )
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Enum)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -130,13 +131,14 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        get_extended_id(convert_text_to_string::<T>(&self.name))
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (Some(get_extended_id(name.clone())), name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Enum)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -155,13 +157,14 @@ where
             .chain(get_dependencies_from_directives(&self.directives))
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::InputObject)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -182,13 +185,14 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        get_extended_id(convert_text_to_string::<T>(&self.name))
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (Some(get_extended_id(name.clone())), name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::InputObject)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -207,13 +211,14 @@ where
             .chain(get_dependencies_from_directives(&self.directives))
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Interface)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -234,13 +239,14 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        get_extended_id(convert_text_to_string::<T>(&self.name))
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (Some(get_extended_id(name.clone())), name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Interface)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -265,13 +271,14 @@ where
             )
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Object)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -298,13 +305,14 @@ where
             .chain(vec![String::from(self.name.as_ref())])
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        get_extended_id(convert_text_to_string::<T>(&self.name))
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (Some(get_extended_id(name.clone())), name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Object)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -317,13 +325,14 @@ where
         // Get root directives.
         get_dependencies_from_directives(&self.directives)
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Scalar)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -340,13 +349,14 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        get_extended_id(convert_text_to_string::<T>(&self.name))
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (Some(get_extended_id(name.clone())), name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Scalar)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -364,13 +374,14 @@ where
             .chain(get_dependencies_from_directives(&self.directives))
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeDefinition(GraphQLType::Union)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -390,13 +401,14 @@ where
             .chain(vec![convert_text_to_string::<T>(&self.name)])
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        get_extended_id(convert_text_to_string::<T>(&self.name))
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (Some(get_extended_id(name.clone())), name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::TypeExtension(GraphQLType::Union)
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -415,14 +427,14 @@ where
             })
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
+    fn get_id_and_name(&self) -> (Option<String>, String) {
         // A Schema has no name, use a default one.
-        String::from("schema")
+        (None, String::from("schema"))
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::Schema
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }
@@ -438,13 +450,14 @@ where
             .flatten()
             .collect::<Vec<String>>()
     }
-    fn get_id(&self) -> String {
-        convert_text_to_string::<T>(&self.name)
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(&self.name);
+        (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
         GraphQL::Directive
     }
-    fn get(&self) -> String {
+    fn get_raw(&self) -> String {
         self.to_string()
     }
 }

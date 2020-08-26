@@ -45,10 +45,7 @@ pub async fn find_orphans(
                         || entity.name == String::from("Query")
                         || entity.name == String::from("Subscription"))) => {}
             _ => {
-                println!(
-                    "{}",
-                    format!("\n# {}\n{}", entity.path.to_string_lossy(), entity.raw) // TODO: impl!
-                );
+                println!("{}", entity);
             }
         };
     }
@@ -67,10 +64,7 @@ pub async fn find_node(
         Some(index) => {
             let entity = &graph.node_weight(index).unwrap().entity;
 
-            println!(
-                "{}",
-                format!("\n# {}\n{}", entity.path.to_string_lossy(), entity.raw)
-            );
+            println!("{}", entity);
 
             Ok(())
         }
@@ -140,19 +134,20 @@ async fn add_node_and_dependencies(
     dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
     file: &(PathBuf, String),
 ) -> Result<()> {
-    let entity_dependencies = entity.get_dependencies();
     let mut graph = graph.lock().await;
 
-    let node_index = graph.add_node(Node::new(
-        Entity::new(
-            entity_dependencies.clone(),
-            entity.get_mapped_type(), // TODO: impl on ExtendType
-            entity.get_id(),
-            file.0.to_owned(),
-            entity.get(),
-        ),
-        entity.get_id(),
-    ));
+    let entity_dependencies = entity.get_dependencies();
+    let (id, name) = entity.get_id_and_name();
+    let new_entity = Entity::new(
+        entity_dependencies.clone(),
+        entity.get_mapped_type(),
+        id,
+        name,
+        file.0.to_owned(),
+        entity.get_raw(),
+    );
+    let node_id = new_entity.id.clone();
+    let node_index = graph.add_node(Node::new(new_entity, node_id));
 
     // Update dependencies.
     let mut dependencies = dependencies.lock().await;
