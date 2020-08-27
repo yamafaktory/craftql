@@ -7,6 +7,7 @@ graphexclude = [".github", "graph.svg", "rustfmt.toml"]
 keywords = ["graph", "graphviz", "graphql", "cli", "terminal"]
 license = "MIT"
 name = "craftql"
+readme = "README.md"
 repository = "https://github.com/yamafaktory/craftql"
 version = "0.1.4-alpha.0"
 
