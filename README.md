@@ -1,4 +1,4 @@
-# CraftQL
+# CraftQL ![ci](https://github.com/yamafaktory/craftql/workflows/ci/badge.svg)
 
 > A CLI tool to manipulate GraphQL schemas and to output a graph data structure as a graphviz .dot format
 
