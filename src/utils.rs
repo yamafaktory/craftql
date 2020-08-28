@@ -20,10 +20,10 @@ fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
 }
 
-/// Find orphans node and display them.
+/// Find and return orphan nodes.
 pub async fn find_orphans(
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
-) -> Result<()> {
+) -> Vec<Entity> {
     let graph = graph.lock().await;
     let externals = graph.externals(Outgoing);
     let has_root_schema = graph
@@ -31,23 +31,43 @@ pub async fn find_orphans(
         .find(|index| graph[*index].id == "schema")
         .is_some();
 
-    for index in externals {
-        let entity = &graph.node_weight(index).unwrap().entity;
+    externals
+        .filter_map(|index| {
+            let entity = &graph.node_weight(index).unwrap().entity;
 
-        match entity.graphql {
-            // Skip root schema has it can't have outgoing edges.
-            GraphQL::Schema => {}
-            // Skip Mutation, Query and Subscription if no root schema is defined
-            // as those nodes can't have outgoing edges.
-            GraphQL::TypeDefinition(GraphQLType::Object)
-                if (!has_root_schema
-                    && (entity.name == String::from("Mutation")
-                        || entity.name == String::from("Query")
-                        || entity.name == String::from("Subscription"))) => {}
-            _ => {
-                println!("{}", entity);
+            match entity.graphql {
+                // Skip root schema has it can't have outgoing edges.
+                GraphQL::Schema => None,
+                // Skip Mutation, Query and Subscription if no root schema is defined
+                // as those nodes can't have outgoing edges.
+                GraphQL::TypeDefinition(GraphQLType::Object)
+                    if (!has_root_schema
+                        && (entity.name == String::from("Mutation")
+                            || entity.name == String::from("Query")
+                            || entity.name == String::from("Subscription"))) =>
+                {
+                    None
+                }
+                _ => Some(entity),
             }
-        };
+        })
+        .cloned()
+        .collect::<Vec<Entity>>()
+}
+
+/// Print orphan nodes.
+pub async fn print_orphans(
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+) -> Result<()> {
+    let orphans = find_orphans(graph).await;
+
+    if orphans.is_empty() {
+        eprintln!("No orphan node found");
+        exit(1);
+    }
+
+    for orphan in orphans {
+        println!("{}", orphan);
     }
 
     Ok(())
@@ -314,17 +334,37 @@ pub async fn populate_graph_from_ast(
 mod tests {
     use super::*;
 
-    use crate::state::{GraphQL, GraphQLType, State};
+    use crate::state::{Data, GraphQL, GraphQLType, State};
 
     use async_std::task;
     use petgraph::graph::NodeIndex;
 
-    #[async_std::test]
-    async fn check_dependencies_and_graph() {
+    async fn scaffold(files: Vec<(PathBuf, String)>) -> Data {
         let state = State::new();
         let shared_data = state.shared;
         let shared_data_for_populate = shared_data.clone();
 
+        task::block_on(async {
+            let mut shared_files = shared_data.files.lock().await;
+
+            for (path, contents) in files {
+                shared_files.insert(path, contents);
+            }
+        });
+
+        populate_graph_from_ast(
+            shared_data_for_populate.dependencies,
+            shared_data_for_populate.files,
+            shared_data_for_populate.graph,
+        )
+        .await
+        .unwrap();
+
+        shared_data
+    }
+
+    #[async_std::test]
+    async fn check_dependencies_and_graph() {
         let house_contents = "type House { price: Int! rooms: Int! @test owner: Owner! }";
         let house_dependencies = vec!["Int", "test", "Int", "Owner"];
         let house_name = "House";
@@ -335,21 +375,11 @@ mod tests {
         let owner_name = "Owner";
         let owner_path = "some_path/Owner.graphql";
 
-        task::block_on(async {
-            let mut files = shared_data.files.lock().await;
-
-            files.insert(PathBuf::from(house_path), String::from(house_contents));
-
-            files.insert(PathBuf::from(owner_path), String::from(owner_contents));
-        });
-
-        populate_graph_from_ast(
-            shared_data_for_populate.dependencies,
-            shared_data_for_populate.files,
-            shared_data_for_populate.graph,
-        )
-        .await
-        .unwrap();
+        let shared_data = scaffold(vec![
+            (PathBuf::from(house_path), String::from(house_contents)),
+            (PathBuf::from(owner_path), String::from(owner_contents)),
+        ])
+        .await;
 
         let dependencies = shared_data.dependencies.lock().await;
 
@@ -382,13 +412,12 @@ mod tests {
         assert_eq!(graph.edge_count(), 1);
 
         // Check house.
-        let house = graph
-            .node_weight(if is_same_order {
-                NodeIndex::new(0)
-            } else {
-                NodeIndex::new(1)
-            })
-            .unwrap();
+        let house_node_index = if is_same_order {
+            NodeIndex::new(0)
+        } else {
+            NodeIndex::new(1)
+        };
+        let house = graph.node_weight(house_node_index).unwrap();
         assert_eq!(house.id, String::from(house_name));
         assert_eq!(house.entity.dependencies, house_dependencies);
         assert_eq!(
@@ -408,13 +437,12 @@ mod tests {
         );
 
         // Check owner.
-        let owner = graph
-            .node_weight(if is_same_order {
-                NodeIndex::new(1)
-            } else {
-                NodeIndex::new(0)
-            })
-            .unwrap();
+        let owner_node_index = if is_same_order {
+            NodeIndex::new(1)
+        } else {
+            NodeIndex::new(0)
+        };
+        let owner = graph.node_weight(owner_node_index).unwrap();
         assert_eq!(owner.id, String::from(owner_name));
         assert_eq!(owner.entity.dependencies, owner_dependencies);
         assert_eq!(
@@ -432,5 +460,71 @@ mod tests {
                 parse_schema::<String>(owner_contents).unwrap().to_owned()
             )
         );
+
+        // Check the edges. Owner should be directed to House, not the other
+        // way around!
+        assert!(graph.contains_edge(owner_node_index, house_node_index));
+        assert!(!graph.contains_edge(house_node_index, owner_node_index));
+    }
+
+    #[async_std::test]
+    async fn check_orphans() {
+        let shared_data = scaffold(vec![(
+            PathBuf::from("some_path/Peer.gql"),
+            String::from("type Peer { id: String! }"),
+        )])
+        .await;
+
+        task::block_on(async {
+            let graph = &*shared_data.graph.lock().await;
+            assert_eq!(graph.node_count(), 1);
+            assert_eq!(graph.edge_count(), 0);
+        });
+
+        debug_assert_eq!(find_orphans(shared_data.graph).await.len(), 1);
+    }
+
+    #[async_std::test]
+    async fn check_orphans_with_schema() {
+        let shared_data = scaffold(vec![(
+            PathBuf::from("some_path/Schema.gql"),
+            String::from("schema { query: Query }"),
+        )])
+        .await;
+
+        task::block_on(async {
+            let graph = &*shared_data.graph.lock().await;
+            assert_eq!(graph.node_count(), 1);
+            assert_eq!(graph.edge_count(), 0);
+        });
+
+        debug_assert_eq!(find_orphans(shared_data.graph).await.len(), 0);
+    }
+
+    #[async_std::test]
+    async fn check_orphans_without_schema_but_with_query_mutation_subscription() {
+        let shared_data = scaffold(vec![
+            (
+                PathBuf::from("some_path/Query.gql"),
+                String::from("type Query { foo(bar: String): String }"),
+            ),
+            (
+                PathBuf::from("some_path/Mutation.gql"),
+                String::from("type Mutation { foo(bar: String): String }"),
+            ),
+            (
+                PathBuf::from("some_path/Subscription.gql"),
+                String::from("type Subscription { foo(bar: String): String }"),
+            ),
+        ])
+        .await;
+
+        task::block_on(async {
+            let graph = &*shared_data.graph.lock().await;
+            assert_eq!(graph.node_count(), 3);
+            assert_eq!(graph.edge_count(), 0);
+        });
+
+        debug_assert_eq!(find_orphans(shared_data.graph).await.len(), 0);
     }
 }

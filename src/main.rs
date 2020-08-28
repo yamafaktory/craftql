@@ -12,11 +12,11 @@ mod utils;
 
 use crate::{
     state::State,
-    utils::{find_node, find_orphans, get_files, populate_graph_from_ast},
+    utils::{find_node, get_files, populate_graph_from_ast, print_orphans},
 };
 
 use anyhow::Result;
-use async_std::{path::PathBuf, task};
+use async_std::path::PathBuf;
 use clap::{crate_authors, crate_description, crate_version, Clap};
 use petgraph::dot::{Config, Dot};
 
@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
     }
 
     if opts.orphans {
-        find_orphans(shared_data.graph.clone()).await?;
+        print_orphans(shared_data.graph.clone()).await?;
 
         return Ok(());
     }

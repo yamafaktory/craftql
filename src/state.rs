@@ -22,7 +22,7 @@ pub enum GraphQLType {
 }
 
 /// Derived and simplified from graphql_parser::schema enums.
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum GraphQL<T = GraphQLType> {
     Directive,
     Schema,
@@ -45,6 +45,7 @@ where
 }
 
 /// Represents a GraphQL entity.
+#[derive(Clone)]
 pub struct Entity {
     pub dependencies: Vec<String>,
     pub graphql: GraphQL,
