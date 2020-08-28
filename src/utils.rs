@@ -305,7 +305,7 @@ pub async fn populate_graph_from_ast(
         for dependency in inner_dependencies {
             let mut graph = graph.lock().await;
             // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
-            if let Some(index) = *&graph
+            if let Some(index) = graph
                 .node_indices()
                 .find(|index| graph[*index].id == *dependency)
             {
