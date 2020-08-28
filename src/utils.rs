@@ -314,29 +314,33 @@ pub async fn populate_graph_from_ast(
 mod tests {
     use super::*;
 
-    use crate::state::{Entity, GraphQL, GraphQLType, Node, State};
+    use crate::state::{GraphQL, GraphQLType, State};
 
     use async_std::task;
     use petgraph::graph::NodeIndex;
 
     #[async_std::test]
-    async fn check_dependencies() {
+    async fn check_dependencies_and_graph() {
         let state = State::new();
         let shared_data = state.shared;
         let shared_data_for_populate = shared_data.clone();
 
+        let house_contents = "type House { price: Int! rooms: Int! @test owner: Owner! }";
+        let house_dependencies = vec!["Int", "test", "Int", "Owner"];
+        let house_name = "House";
+        let house_path = "some_path/House.gql";
+
+        let owner_contents = "type Owner { name: String! }";
+        let owner_dependencies = vec!["String"];
+        let owner_name = "Owner";
+        let owner_path = "some_path/Owner.graphql";
+
         task::block_on(async {
             let mut files = shared_data.files.lock().await;
 
-            files.insert(
-                PathBuf::from("some_path/House.gql"),
-                String::from("type House { price: Int! rooms: Int! @test owner: Owner! }"),
-            );
+            files.insert(PathBuf::from(house_path), String::from(house_contents));
 
-            files.insert(
-                PathBuf::from("some_path/Owner.gql"),
-                String::from("type Owner { name: String! }"),
-            );
+            files.insert(PathBuf::from(owner_path), String::from(owner_contents));
         });
 
         populate_graph_from_ast(
@@ -353,29 +357,57 @@ mod tests {
 
         // There no determined insertion order, assign dependencies lists based
         // on respective assumed lengths.
-        let (a, b, is_same_order) = if dependencies.get(&NodeIndex::new(0)).unwrap().len() == 4 {
-            (
-                dependencies.get(&NodeIndex::new(1)).unwrap(),
-                dependencies.get(&NodeIndex::new(0)).unwrap(),
-                true,
-            )
-        } else {
-            (
-                dependencies.get(&NodeIndex::new(0)).unwrap(),
-                dependencies.get(&NodeIndex::new(1)).unwrap(),
-                false,
-            )
-        };
+        let (current_owner_dependencies, current_house_dependencies, is_same_order) =
+            if dependencies.get(&NodeIndex::new(0)).unwrap().len() == 4 {
+                (
+                    dependencies.get(&NodeIndex::new(1)).unwrap(),
+                    dependencies.get(&NodeIndex::new(0)).unwrap(),
+                    true,
+                )
+            } else {
+                (
+                    dependencies.get(&NodeIndex::new(0)).unwrap(),
+                    dependencies.get(&NodeIndex::new(1)).unwrap(),
+                    false,
+                )
+            };
 
-        // Human schema.
-        assert_eq!(a, &vec!["String"]);
-        // House schema.
-        assert_eq!(b, &vec!["Int", "test", "Int", "Owner"]);
+        // List of dependencies should match.
+        assert_eq!(current_owner_dependencies, &owner_dependencies);
+        assert_eq!(current_house_dependencies, &house_dependencies);
 
+        // Graph should contains 2 nodes and 1 edge.
         let graph = &*shared_data.graph.lock().await;
         assert_eq!(graph.node_count(), 2);
         assert_eq!(graph.edge_count(), 1);
 
+        // Check house.
+        let house = graph
+            .node_weight(if is_same_order {
+                NodeIndex::new(0)
+            } else {
+                NodeIndex::new(1)
+            })
+            .unwrap();
+        assert_eq!(house.id, String::from(house_name));
+        assert_eq!(house.entity.dependencies, house_dependencies);
+        assert_eq!(
+            house.entity.graphql,
+            GraphQL::TypeDefinition(GraphQLType::Object)
+        );
+        assert_eq!(house.entity.id, String::from(house_name));
+        assert_eq!(house.entity.name, String::from(house_name));
+        assert_eq!(house.entity.path, PathBuf::from(house_path));
+        // We need to parse and format the AST in order to get the same output!
+        assert_eq!(
+            house.entity.raw.to_string(),
+            format!(
+                "{}",
+                parse_schema::<String>(house_contents).unwrap().to_owned()
+            )
+        );
+
+        // Check owner.
         let owner = graph
             .node_weight(if is_same_order {
                 NodeIndex::new(1)
@@ -383,19 +415,22 @@ mod tests {
                 NodeIndex::new(0)
             })
             .unwrap();
+        assert_eq!(owner.id, String::from(owner_name));
+        assert_eq!(owner.entity.dependencies, owner_dependencies);
         assert_eq!(
-            owner,
-            &Node {
-                entity: Entity {
-                    dependencies: vec![],
-                    graphql: GraphQL::TypeDefinition(GraphQLType::Object),
-                    id: String::from("Owner"),
-                    name: String::from("Owner"),
-                    path: PathBuf::from("some_path/Owner.gql"),
-                    raw: String::from(""),
-                },
-                id: String::from("Owner"),
-            }
+            owner.entity.graphql,
+            GraphQL::TypeDefinition(GraphQLType::Object)
+        );
+        assert_eq!(owner.entity.id, String::from(owner_name));
+        assert_eq!(owner.entity.name, String::from(owner_name));
+        assert_eq!(owner.entity.path, PathBuf::from(owner_path));
+        // We need to parse and format the AST in order to get the same output!
+        assert_eq!(
+            owner.entity.raw.to_string(),
+            format!(
+                "{}",
+                parse_schema::<String>(owner_contents).unwrap().to_owned()
+            )
         );
     }
 }

@@ -45,7 +45,6 @@ where
 }
 
 /// Represents a GraphQL entity.
-#[derive(PartialEq)]
 pub struct Entity {
     pub dependencies: Vec<String>,
     pub graphql: GraphQL,
@@ -103,7 +102,6 @@ impl fmt::Display for Entity {
     }
 }
 
-#[derive(PartialEq)]
 pub struct Node {
     pub entity: Entity,
     // Using the entity name as id is safe as it is unique.
