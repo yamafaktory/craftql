@@ -13,7 +13,9 @@ where
 
 /// Extend id for type extensions.
 /// Only used internally to distinguish between a type and its extension.
-fn get_extended_id(id: String) -> String { format!("{}__", id) }
+fn get_extended_id(id: String) -> String {
+    format!("{}__", id)
+}
 
 /// Extract dependencies from any entity's directives.
 fn get_dependencies_from_directives<'a, T>(directives: &[schema::Directive<'a, T>]) -> Vec<String>
@@ -79,286 +81,269 @@ pub trait ExtendType {
     fn get_raw(&self) -> String;
 }
 
-impl<'a, T> ExtendType for schema::EnumType<'a, T>
+impl<'a, T> ExtendType for schema::TypeDefinition<'a, T>
 where
     T: schema::Text<'a>,
 {
     fn get_dependencies(&self) -> Vec<String> {
-        // Get root directives.
-        get_dependencies_from_directives(&self.directives)
-            .into_iter()
-            // Get values' directives.
-            .chain(
-                self.values
+        match self {
+            schema::TypeDefinition::Enum(enum_type) => {
+                // Get root directives.
+                get_dependencies_from_directives(&enum_type.directives)
+                    .into_iter()
+                    // Get values' directives.
+                    .chain(
+                        enum_type
+                            .values
+                            .iter()
+                            .map(|enum_value| {
+                                get_dependencies_from_directives(&enum_value.directives)
+                            })
+                            .flatten(),
+                    )
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeDefinition::Scalar(scalar_type) => {
+                // Get root directives.
+                get_dependencies_from_directives(&scalar_type.directives)
+            }
+            schema::TypeDefinition::Object(object_type) => {
+                // Get fields' dependencies.
+                object_type
+                    .fields
                     .iter()
-                    .map(|enum_value| get_dependencies_from_directives(&enum_value.directives))
-                    .flatten(),
-            )
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (None, name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Enum) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::EnumTypeExtension<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get root directives.
-        get_dependencies_from_directives(&self.directives)
-            .into_iter()
-            // Get values' directives.
-            .chain(
-                self.values
+                    .map(|field| walk_field(field))
+                    .flatten()
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(&object_type.directives))
+                    // Get interfaces as dependencies.
+                    .chain(
+                        object_type
+                            .implements_interfaces
+                            .iter()
+                            .map(|directive| convert_text_to_string::<T>(&directive)),
+                    )
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeDefinition::Interface(interface_type) => {
+                // Get fields' dependencies.
+                interface_type
+                    .fields
                     .iter()
-                    .map(|enum_value| get_dependencies_from_directives(&enum_value.directives))
-                    .flatten(),
-            )
-            // Add extension's source.
-            .chain(vec![convert_text_to_string::<T>(&self.name)])
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (Some(get_extended_id(name.clone())), name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Enum) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::InputObjectType<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get fields' dependencies.
-        self.fields
-            .iter()
-            .map(|input_value| walk_input_value(input_value))
-            .flatten()
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (None, name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::InputObject) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::InputObjectTypeExtension<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get fields' dependencies.
-        self.fields
-            .iter()
-            .map(|input_value| walk_input_value(input_value))
-            .flatten()
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            // Add extension's source.
-            .chain(vec![convert_text_to_string::<T>(&self.name)])
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (Some(get_extended_id(name.clone())), name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::InputObject) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::InterfaceType<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get fields' dependencies.
-        self.fields
-            .iter()
-            .map(|field| walk_field(field))
-            .flatten()
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (None, name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Interface) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::InterfaceTypeExtension<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get fields' dependencies.
-        self.fields
-            .iter()
-            .map(|field| walk_field(field))
-            .flatten()
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            // Add extension's source.
-            .chain(vec![convert_text_to_string::<T>(&self.name)])
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (Some(get_extended_id(name.clone())), name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Interface) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::ObjectType<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get fields' dependencies.
-        self.fields
-            .iter()
-            .map(|field| walk_field(field))
-            .flatten()
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            // Get interfaces as dependencies.
-            .chain(
-                self.implements_interfaces
+                    .map(|field| walk_field(field))
+                    .flatten()
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(&interface_type.directives))
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeDefinition::Union(union_type) => {
+                // Get types as dependencies.
+                union_type
+                    .types
                     .iter()
-                    .map(|directive| convert_text_to_string::<T>(&directive)),
-            )
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (None, name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Object) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::ObjectTypeExtension<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get fields' dependencies.
-        self.fields
-            .iter()
-            .map(|field| walk_field(field))
-            .flatten()
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            // Get interfaces as dependencies.
-            .chain(
-                self.implements_interfaces
+                    .map(|inner_type| convert_text_to_string::<T>(&inner_type))
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(&union_type.directives))
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeDefinition::InputObject(input_object_type) => {
+                // Get fields' dependencies.
+                input_object_type
+                    .fields
                     .iter()
-                    .map(|directive| convert_text_to_string::<T>(&directive)),
-            )
-            // Add extension's source.
-            .chain(vec![String::from(self.name.as_ref())])
-            .collect::<Vec<String>>()
+                    .map(|input_value| walk_input_value(input_value))
+                    .flatten()
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(
+                        &input_object_type.directives,
+                    ))
+                    // Add extension's source.
+                    .chain(vec![convert_text_to_string::<T>(&input_object_type.name)])
+                    .collect::<Vec<String>>()
+            }
+        }
     }
     fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
+        (
+            None,
+            convert_text_to_string::<T>(match self {
+                schema::TypeDefinition::Enum(enum_type) => &enum_type.name,
+                schema::TypeDefinition::Scalar(scalar_type) => &scalar_type.name,
+                schema::TypeDefinition::Object(object_type) => &object_type.name,
+                schema::TypeDefinition::Interface(interface_type) => &interface_type.name,
+                schema::TypeDefinition::Union(union_type) => &union_type.name,
+                schema::TypeDefinition::InputObject(input_object_type) => &input_object_type.name,
+            }),
+        )
+    }
+    fn get_mapped_type(&self) -> GraphQL {
+        match self {
+            schema::TypeDefinition::Enum(_) => GraphQL::TypeDefinition(GraphQLType::Enum),
+            schema::TypeDefinition::Scalar(_) => GraphQL::TypeDefinition(GraphQLType::Scalar),
+            schema::TypeDefinition::Object(_) => GraphQL::TypeDefinition(GraphQLType::Object),
+            schema::TypeDefinition::Interface(_) => GraphQL::TypeDefinition(GraphQLType::Interface),
+            schema::TypeDefinition::Union(_) => GraphQL::TypeDefinition(GraphQLType::Union),
+            schema::TypeDefinition::InputObject(_) => {
+                GraphQL::TypeDefinition(GraphQLType::InputObject)
+            }
+        }
+    }
+    fn get_raw(&self) -> String {
+        match self {
+            schema::TypeDefinition::Enum(enum_type) => enum_type.to_string(),
+            schema::TypeDefinition::Scalar(scalar_type) => scalar_type.to_string(),
+            schema::TypeDefinition::Object(object_type) => object_type.to_string(),
+            schema::TypeDefinition::Interface(interface_type) => interface_type.to_string(),
+            schema::TypeDefinition::Union(union_type) => union_type.to_string(),
+            schema::TypeDefinition::InputObject(input_object_type) => input_object_type.to_string(),
+        }
+    }
+}
+
+impl<'a, T> ExtendType for schema::TypeExtension<'a, T>
+where
+    T: schema::Text<'a>,
+{
+    fn get_dependencies(&self) -> Vec<String> {
+        match self {
+            schema::TypeExtension::Enum(enum_type_extension) => {
+                // Get root directives.
+                get_dependencies_from_directives(&enum_type_extension.directives)
+                    .into_iter()
+                    // Get values' directives.
+                    .chain(
+                        enum_type_extension
+                            .values
+                            .iter()
+                            .map(|enum_value| {
+                                get_dependencies_from_directives(&enum_value.directives)
+                            })
+                            .flatten(),
+                    )
+                    // Add extension's source.
+                    .chain(vec![convert_text_to_string::<T>(&enum_type_extension.name)])
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeExtension::Scalar(scalar_type_extension) => {
+                // Get root directives.
+                get_dependencies_from_directives(&scalar_type_extension.directives)
+                    .into_iter()
+                    // Add extension's source.
+                    .chain(vec![convert_text_to_string::<T>(
+                        &scalar_type_extension.name,
+                    )])
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeExtension::Object(object_type_extension) => {
+                // Get fields' dependencies.
+                object_type_extension
+                    .fields
+                    .iter()
+                    .map(|field| walk_field(field))
+                    .flatten()
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(
+                        &object_type_extension.directives,
+                    ))
+                    // Get interfaces as dependencies.
+                    .chain(
+                        object_type_extension
+                            .implements_interfaces
+                            .iter()
+                            .map(|directive| convert_text_to_string::<T>(&directive)),
+                    )
+                    // Add extension's source.
+                    .chain(vec![String::from(object_type_extension.name.as_ref())])
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeExtension::Interface(interface_type_extension) => {
+                // Get fields' dependencies.
+                interface_type_extension
+                    .fields
+                    .iter()
+                    .map(|field| walk_field(field))
+                    .flatten()
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(
+                        &interface_type_extension.directives,
+                    ))
+                    // Add extension's source.
+                    .chain(vec![convert_text_to_string::<T>(
+                        &interface_type_extension.name,
+                    )])
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeExtension::Union(union_type_extension) => {
+                // Get types as dependencies.
+                union_type_extension
+                    .types
+                    .iter()
+                    .map(|inner_type| convert_text_to_string::<T>(&inner_type))
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(
+                        &union_type_extension.directives,
+                    ))
+                    // Add extension's source.
+                    .chain(vec![convert_text_to_string::<T>(
+                        &union_type_extension.name,
+                    )])
+                    .collect::<Vec<String>>()
+            }
+            schema::TypeExtension::InputObject(input_object_type_extension) => {
+                // Get fields' dependencies.
+                input_object_type_extension
+                    .fields
+                    .iter()
+                    .map(|input_value| walk_input_value(input_value))
+                    .flatten()
+                    // Get root directives.
+                    .chain(get_dependencies_from_directives(
+                        &input_object_type_extension.directives,
+                    ))
+                    // Add extension's source.
+                    .chain(vec![convert_text_to_string::<T>(
+                        &input_object_type_extension.name,
+                    )])
+                    .collect::<Vec<String>>()
+            }
+        }
+    }
+    fn get_id_and_name(&self) -> (Option<String>, String) {
+        let name = convert_text_to_string::<T>(match self {
+            schema::TypeExtension::Enum(enum_type_extension) => &enum_type_extension.name,
+            schema::TypeExtension::Scalar(scalar_type_extension) => &scalar_type_extension.name,
+            schema::TypeExtension::Object(object_type_extension) => &object_type_extension.name,
+            schema::TypeExtension::Interface(interface_type_extension) => {
+                &interface_type_extension.name
+            }
+            schema::TypeExtension::Union(union_type_extension) => &union_type_extension.name,
+            schema::TypeExtension::InputObject(input_object_type) => &input_object_type.name,
+        });
+
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Object) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::ScalarType<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get root directives.
-        get_dependencies_from_directives(&self.directives)
+    fn get_mapped_type(&self) -> GraphQL {
+        match self {
+            schema::TypeExtension::Enum(_) => GraphQL::TypeExtension(GraphQLType::Enum),
+            schema::TypeExtension::Scalar(_) => GraphQL::TypeExtension(GraphQLType::Scalar),
+            schema::TypeExtension::Object(_) => GraphQL::TypeExtension(GraphQLType::Object),
+            schema::TypeExtension::Interface(_) => GraphQL::TypeExtension(GraphQLType::Interface),
+            schema::TypeExtension::Union(_) => GraphQL::TypeExtension(GraphQLType::Union),
+            schema::TypeExtension::InputObject(_) => {
+                GraphQL::TypeExtension(GraphQLType::InputObject)
+            }
+        }
     }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (None, name)
+    fn get_raw(&self) -> String {
+        match self {
+            schema::TypeExtension::Enum(enum_type) => enum_type.to_string(),
+            schema::TypeExtension::Scalar(scalar_type) => scalar_type.to_string(),
+            schema::TypeExtension::Object(object_type) => object_type.to_string(),
+            schema::TypeExtension::Interface(interface_type) => interface_type.to_string(),
+            schema::TypeExtension::Union(union_type) => union_type.to_string(),
+            schema::TypeExtension::InputObject(input_object_type) => input_object_type.to_string(),
+        }
     }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Scalar) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::ScalarTypeExtension<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get root directives.
-        get_dependencies_from_directives(&self.directives)
-            .into_iter()
-            // Add extension's source.
-            .chain(vec![convert_text_to_string::<T>(&self.name)])
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (Some(get_extended_id(name.clone())), name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Scalar) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::UnionType<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get types as dependencies.
-        self.types
-            .iter()
-            .map(|inner_type| convert_text_to_string::<T>(&inner_type))
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (None, name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Union) }
-    fn get_raw(&self) -> String { self.to_string() }
-}
-
-impl<'a, T> ExtendType for schema::UnionTypeExtension<'a, T>
-where
-    T: schema::Text<'a>,
-{
-    fn get_dependencies(&self) -> Vec<String> {
-        // Get types as dependencies.
-        self.types
-            .iter()
-            .map(|inner_type| convert_text_to_string::<T>(&inner_type))
-            // Get root directives.
-            .chain(get_dependencies_from_directives(&self.directives))
-            // Add extension's source.
-            .chain(vec![convert_text_to_string::<T>(&self.name)])
-            .collect::<Vec<String>>()
-    }
-    fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
-        (Some(get_extended_id(name.clone())), name)
-    }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Union) }
-    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::SchemaDefinition<'a, T>
@@ -379,8 +364,12 @@ where
         // A Schema has no name, use a default one.
         (None, String::from("schema"))
     }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::Schema }
-    fn get_raw(&self) -> String { self.to_string() }
+    fn get_mapped_type(&self) -> GraphQL {
+        GraphQL::Schema
+    }
+    fn get_raw(&self) -> String {
+        self.to_string()
+    }
 }
 
 impl<'a, T> ExtendType for schema::DirectiveDefinition<'a, T>
@@ -398,8 +387,12 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL { GraphQL::Directive }
-    fn get_raw(&self) -> String { self.to_string() }
+    fn get_mapped_type(&self) -> GraphQL {
+        GraphQL::Directive
+    }
+    fn get_raw(&self) -> String {
+        self.to_string()
+    }
 }
 
 #[cfg(test)]
@@ -430,38 +423,21 @@ mod tests {
         let document = parse_schema::<String>(contents).unwrap().to_owned();
 
         match document.definitions.get(0).unwrap().to_owned() {
-            schema::Definition::TypeDefinition(type_definition) => match type_definition {
-                schema::TypeDefinition::Enum(enum_type) => {
-                    assert(
-                        enum_type,
-                        dependencies,
-                        id_and_name,
-                        mapped_type,
-                        document.to_string(),
-                    );
-                }
-                schema::TypeDefinition::Scalar(_) => {}
-                schema::TypeDefinition::Object(_) => {}
-                schema::TypeDefinition::Interface(_) => {}
-                schema::TypeDefinition::Union(_) => {}
-                schema::TypeDefinition::InputObject(_) => {}
-            },
-
+            schema::Definition::TypeDefinition(type_definition) => assert(
+                type_definition,
+                dependencies,
+                id_and_name,
+                mapped_type,
+                document.to_string(),
+            ),
+            schema::Definition::TypeExtension(type_extension) => assert(
+                type_extension,
+                dependencies,
+                id_and_name,
+                mapped_type,
+                document.to_string(),
+            ),
             schema::Definition::SchemaDefinition(_) => {}
-            schema::Definition::TypeExtension(type_extension) => match type_extension {
-                schema::TypeExtension::Enum(enum_type_extension) => assert(
-                    enum_type_extension,
-                    dependencies,
-                    id_and_name,
-                    mapped_type,
-                    document.to_string(),
-                ),
-                schema::TypeExtension::Scalar(_) => {}
-                schema::TypeExtension::Object(_) => {}
-                schema::TypeExtension::Interface(_) => {}
-                schema::TypeExtension::Union(_) => {}
-                schema::TypeExtension::InputObject(_) => {}
-            },
             schema::Definition::DirectiveDefinition(_) => {}
         };
     }

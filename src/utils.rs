@@ -195,105 +195,18 @@ pub async fn populate_graph_from_ast(
             let dependencies = dependencies.clone();
 
             match definition {
-                schema::Definition::TypeDefinition(type_definition) => match type_definition {
-                    schema::TypeDefinition::Enum(enum_type) => {
-                        add_node_and_dependencies(enum_type, graph, dependencies, &file).await?
-                    }
-
-                    schema::TypeDefinition::InputObject(input_object_type) => {
-                        add_node_and_dependencies(input_object_type, graph, dependencies, &file)
-                            .await?
-                    }
-
-                    schema::TypeDefinition::Interface(interface_type) => {
-                        add_node_and_dependencies(interface_type, graph, dependencies, &file)
-                            .await?
-                    }
-
-                    schema::TypeDefinition::Object(object_type) => {
-                        add_node_and_dependencies(object_type, graph, dependencies, &file).await?
-                    }
-
-                    schema::TypeDefinition::Scalar(scalar_type) => {
-                        add_node_and_dependencies(scalar_type, graph, dependencies, &file).await?
-                    }
-
-                    schema::TypeDefinition::Union(union_type) => {
-                        add_node_and_dependencies(union_type, graph, dependencies, &file).await?
-                    }
-                },
-
+                schema::Definition::TypeDefinition(type_definition) => {
+                    add_node_and_dependencies(type_definition, graph, dependencies, &file).await?
+                }
+                schema::Definition::TypeExtension(type_extension) => {
+                    add_node_and_dependencies(type_extension, graph, dependencies, &file).await?
+                }
                 schema::Definition::SchemaDefinition(schema_definition) => {
                     add_node_and_dependencies(schema_definition, graph, dependencies, &file).await?
                 }
-
                 schema::Definition::DirectiveDefinition(directive_definition) => {
                     add_node_and_dependencies(directive_definition, graph, dependencies, &file)
                         .await?
-                }
-
-                schema::Definition::TypeExtension(type_extension) => {
-                    match type_extension {
-                        schema::TypeExtension::Object(object_type_extension) => {
-                            add_node_and_dependencies(
-                                object_type_extension,
-                                graph,
-                                dependencies,
-                                &file,
-                            )
-                            .await?
-                        }
-
-                        schema::TypeExtension::Scalar(scalar_type_extension) => {
-                            add_node_and_dependencies(
-                                scalar_type_extension,
-                                graph,
-                                dependencies,
-                                &file,
-                            )
-                            .await?
-                        }
-
-                        schema::TypeExtension::Interface(interface_type_extension) => {
-                            add_node_and_dependencies(
-                                interface_type_extension,
-                                graph,
-                                dependencies,
-                                &file,
-                            )
-                            .await?
-                        }
-
-                        schema::TypeExtension::Union(union_type_extension) => {
-                            add_node_and_dependencies(
-                                union_type_extension,
-                                graph,
-                                dependencies,
-                                &file,
-                            )
-                            .await?
-                        }
-
-                        schema::TypeExtension::Enum(enum_type_extension) => {
-                            add_node_and_dependencies(
-                                enum_type_extension,
-                                graph,
-                                dependencies,
-                                &file,
-                            )
-                            .await?
-                        }
-
-                        schema::TypeExtension::InputObject(input_object_type_extension) => {
-                            add_node_and_dependencies(
-                                input_object_type_extension,
-                                graph,
-                                dependencies,
-                                &file,
-                            )
-                            .await?
-                        }
-                    };
                 }
             }
         }

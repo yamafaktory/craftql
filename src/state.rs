@@ -111,11 +111,15 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(entity: Entity, id: String) -> Self { Node { entity, id } }
+    pub fn new(entity: Entity, id: String) -> Self {
+        Node { entity, id }
+    }
 }
 
 impl fmt::Debug for Node {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:?}", self.entity) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.entity)
+    }
 }
 
 #[derive(Debug, Clone)]
