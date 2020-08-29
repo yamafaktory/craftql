@@ -177,5 +177,4 @@ type Orphan {
 ## TODO
 
 - Add flag to list dependencies for a given node
-- Add GitHub CI
 - More to come!
