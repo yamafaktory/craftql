@@ -28,8 +28,9 @@ where
         .collect::<Vec<String>>()
 }
 
-fn sort_dependencies(mut dependencies: Vec<String>) -> Vec<String> {
+fn sort_and_dedupe_dependencies(mut dependencies: Vec<String>) -> Vec<String> {
     dependencies.sort_by_key(|a| a.to_lowercase());
+    dependencies.dedup();
     dependencies
 }
 
@@ -93,7 +94,7 @@ where
     fn get_dependencies(&self) -> Vec<String> {
         match self {
             schema::TypeDefinition::Enum(enum_type) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get root directives.
                     get_dependencies_from_directives(&enum_type.directives)
                         .into_iter()
@@ -111,13 +112,13 @@ where
                 )
             }
             schema::TypeDefinition::Scalar(scalar_type) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get root directives.
                     get_dependencies_from_directives(&scalar_type.directives),
                 )
             }
             schema::TypeDefinition::Object(object_type) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get fields' dependencies.
                     object_type
                         .fields
@@ -137,7 +138,7 @@ where
                 )
             }
             schema::TypeDefinition::Interface(interface_type) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get fields' dependencies.
                     interface_type
                         .fields
@@ -150,7 +151,7 @@ where
                 )
             }
             schema::TypeDefinition::Union(union_type) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get types as dependencies.
                     union_type
                         .types
@@ -162,7 +163,7 @@ where
                 )
             }
             schema::TypeDefinition::InputObject(input_object_type) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get fields' dependencies.
                     input_object_type
                         .fields
@@ -224,7 +225,7 @@ where
     fn get_dependencies(&self) -> Vec<String> {
         match self {
             schema::TypeExtension::Enum(enum_type_extension) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get root directives.
                     get_dependencies_from_directives(&enum_type_extension.directives)
                         .into_iter()
@@ -244,7 +245,7 @@ where
                 )
             }
             schema::TypeExtension::Scalar(scalar_type_extension) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get root directives.
                     get_dependencies_from_directives(&scalar_type_extension.directives)
                         .into_iter()
@@ -256,7 +257,7 @@ where
                 )
             }
             schema::TypeExtension::Object(object_type_extension) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get fields' dependencies.
                     object_type_extension
                         .fields
@@ -280,7 +281,7 @@ where
                 )
             }
             schema::TypeExtension::Interface(interface_type_extension) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get fields' dependencies.
                     interface_type_extension
                         .fields
@@ -299,7 +300,7 @@ where
                 )
             }
             schema::TypeExtension::Union(union_type_extension) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get types as dependencies.
                     union_type_extension
                         .types
@@ -317,7 +318,7 @@ where
                 )
             }
             schema::TypeExtension::InputObject(input_object_type_extension) => {
-                sort_dependencies(
+                sort_and_dedupe_dependencies(
                     // Get fields' dependencies.
                     input_object_type_extension
                         .fields
@@ -380,7 +381,7 @@ where
     T: schema::Text<'a>,
 {
     fn get_dependencies(&self) -> Vec<String> {
-        sort_dependencies(
+        sort_and_dedupe_dependencies(
             // A schema can only have a query, a mutation and a subscription.
             vec![&self.query, &self.mutation, &self.subscription]
                 .into_iter()
@@ -408,7 +409,7 @@ where
     T: schema::Text<'a>,
 {
     fn get_dependencies(&self) -> Vec<String> {
-        sort_dependencies(
+        sort_and_dedupe_dependencies(
             self.arguments
                 .iter()
                 .map(|input_value| walk_input_value(input_value))
@@ -612,7 +613,7 @@ mod tests {
         match_and_assert(
             r#"directive @foo( reason: String = "Woot!" ) on FIELD_DEFINITION | ENUM_VALUE"#,
             vec!["String"],
-            (None, String::from("Foo")),
+            (None, String::from("foo")),
             GraphQL::Directive,
         );
     }
