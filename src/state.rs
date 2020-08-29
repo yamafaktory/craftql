@@ -11,7 +11,7 @@ pub struct State {
 }
 
 /// Core GraphQL types used for definitions and extensions.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum GraphQLType {
     Enum,
     InputObject,
@@ -22,6 +22,7 @@ pub enum GraphQLType {
 }
 
 /// Derived and simplified from graphql_parser::schema enums.
+#[derive(Clone, PartialEq)]
 pub enum GraphQL<T = GraphQLType> {
     Directive,
     Schema,
@@ -44,8 +45,9 @@ where
 }
 
 /// Represents a GraphQL entity.
+#[derive(Clone)]
 pub struct Entity {
-    dependencies: Vec<String>,
+    pub dependencies: Vec<String>,
     pub graphql: GraphQL,
     pub id: String,
     pub name: String,

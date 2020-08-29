@@ -1,8 +1,9 @@
 //! # CraftQL
 //! TODO
 
+#![forbid(rust_2018_idioms)]
 #![warn(missing_debug_implementations, missing_docs)]
-#![deny(nonstandard_style)]
+#![deny(unsafe_code, nonstandard_style)]
 
 mod config;
 mod extend_types;
@@ -11,7 +12,7 @@ mod utils;
 
 use crate::{
     state::State,
-    utils::{find_node, find_orphans, get_files, populate_graph_from_ast},
+    utils::{find_node, get_files, populate_graph_from_ast, print_orphans},
 };
 
 use anyhow::Result;
@@ -68,7 +69,7 @@ async fn main() -> Result<()> {
     }
 
     if opts.orphans {
-        find_orphans(shared_data.graph.clone()).await?;
+        print_orphans(shared_data.graph.clone()).await?;
 
         return Ok(());
     }
