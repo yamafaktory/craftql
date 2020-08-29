@@ -13,9 +13,7 @@ where
 
 /// Extend id for type extensions.
 /// Only used internally to distinguish between a type and its extension.
-fn get_extended_id(id: String) -> String {
-    format!("{}__", id)
-}
+fn get_extended_id(id: String) -> String { format!("{}__", id) }
 
 /// Extract dependencies from any entity's directives.
 fn get_dependencies_from_directives<'a, T>(directives: &[schema::Directive<'a, T>]) -> Vec<String>
@@ -102,12 +100,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeDefinition(GraphQLType::Enum)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Enum) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::EnumTypeExtension<'a, T>
@@ -133,12 +127,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeExtension(GraphQLType::Enum)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Enum) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::InputObjectType<'a, T>
@@ -159,12 +149,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeDefinition(GraphQLType::InputObject)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::InputObject) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::InputObjectTypeExtension<'a, T>
@@ -187,12 +173,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeExtension(GraphQLType::InputObject)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::InputObject) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::InterfaceType<'a, T>
@@ -213,12 +195,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeDefinition(GraphQLType::Interface)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Interface) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::InterfaceTypeExtension<'a, T>
@@ -241,12 +219,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeExtension(GraphQLType::Interface)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Interface) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::ObjectType<'a, T>
@@ -273,12 +247,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeDefinition(GraphQLType::Object)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Object) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::ObjectTypeExtension<'a, T>
@@ -307,12 +277,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeExtension(GraphQLType::Object)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Object) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::ScalarType<'a, T>
@@ -327,12 +293,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeDefinition(GraphQLType::Scalar)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Scalar) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::ScalarTypeExtension<'a, T>
@@ -351,12 +313,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeExtension(GraphQLType::Scalar)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Scalar) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::UnionType<'a, T>
@@ -376,12 +334,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeDefinition(GraphQLType::Union)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeDefinition(GraphQLType::Union) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::UnionTypeExtension<'a, T>
@@ -403,12 +357,8 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (Some(get_extended_id(name.clone())), name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::TypeExtension(GraphQLType::Union)
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::TypeExtension(GraphQLType::Union) }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::SchemaDefinition<'a, T>
@@ -429,12 +379,8 @@ where
         // A Schema has no name, use a default one.
         (None, String::from("schema"))
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::Schema
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::Schema }
+    fn get_raw(&self) -> String { self.to_string() }
 }
 
 impl<'a, T> ExtendType for schema::DirectiveDefinition<'a, T>
@@ -452,10 +398,6 @@ where
         let name = convert_text_to_string::<T>(&self.name);
         (None, name)
     }
-    fn get_mapped_type(&self) -> GraphQL {
-        GraphQL::Directive
-    }
-    fn get_raw(&self) -> String {
-        self.to_string()
-    }
+    fn get_mapped_type(&self) -> GraphQL { GraphQL::Directive }
+    fn get_raw(&self) -> String { self.to_string() }
 }

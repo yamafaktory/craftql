@@ -1,6 +1,8 @@
-use crate::config::ALLOWED_EXTENSIONS;
-use crate::extend_types::ExtendType;
-use crate::state::{Entity, GraphQL, GraphQLType, Node};
+use crate::{
+    config::ALLOWED_EXTENSIONS,
+    extend_types::ExtendType,
+    state::{Entity, GraphQL, GraphQLType, Node},
+};
 
 use anyhow::Result;
 use async_std::{
@@ -316,7 +318,7 @@ pub async fn populate_graph_from_ast(
                     | GraphQL::TypeExtension(GraphQLType::Object)
                     | GraphQL::TypeExtension(GraphQLType::Scalar)
                     | GraphQL::TypeExtension(GraphQLType::Union) => {
-                        &graph.update_edge(node_index.clone(), index, (node_index.clone(), index));
+                        graph.update_edge(*node_index, index, (*node_index, index));
                     }
                     _ => {
                         graph.update_edge(index, *node_index, (index, *node_index));
