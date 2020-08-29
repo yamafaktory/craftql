@@ -18,9 +18,7 @@ fn get_extended_id(id: String) -> String {
 }
 
 /// Extract dependencies from any entity's directives.
-fn get_dependencies_from_directives<'a, T>(
-    directives: &Vec<schema::Directive<'a, T>>,
-) -> Vec<String>
+fn get_dependencies_from_directives<'a, T>(directives: &[schema::Directive<'a, T>]) -> Vec<String>
 where
     T: schema::Text<'a>,
 {

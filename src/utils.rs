@@ -28,8 +28,7 @@ pub async fn find_orphans(
     let externals = graph.externals(Outgoing);
     let has_root_schema = graph
         .node_indices()
-        .find(|index| graph[*index].id == "schema")
-        .is_some();
+        .any(|index| graph[index].id == "schema");
 
     externals
         .filter_map(|index| {
@@ -42,9 +41,9 @@ pub async fn find_orphans(
                 // as those nodes can't have outgoing edges.
                 GraphQL::TypeDefinition(GraphQLType::Object)
                     if (!has_root_schema
-                        && (entity.name == String::from("Mutation")
-                            || entity.name == String::from("Query")
-                            || entity.name == String::from("Subscription"))) =>
+                        && (entity.name == "Mutation"
+                            || entity.name == "Query"
+                            || entity.name == "Subscription")) =>
                 {
                     None
                 }
@@ -309,7 +308,7 @@ pub async fn populate_graph_from_ast(
                 .node_indices()
                 .find(|index| graph[*index].id == *dependency)
             {
-                match &graph[node_index.clone()].entity.graphql {
+                match &graph[*node_index].entity.graphql {
                     // Reverse edge for extension types.
                     GraphQL::TypeExtension(GraphQLType::Enum)
                     | GraphQL::TypeExtension(GraphQLType::InputObject)
@@ -320,7 +319,7 @@ pub async fn populate_graph_from_ast(
                         &graph.update_edge(node_index.clone(), index, (node_index.clone(), index));
                     }
                     _ => {
-                        &graph.update_edge(index, node_index.clone(), (index, node_index.clone()));
+                        graph.update_edge(index, *node_index, (index, *node_index));
                     }
                 };
             }
