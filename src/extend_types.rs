@@ -401,3 +401,88 @@ where
     fn get_mapped_type(&self) -> GraphQL { GraphQL::Directive }
     fn get_raw(&self) -> String { self.to_string() }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use graphql_parser::parse_schema;
+
+    fn match_and_assert(
+        contents: &str,
+        dependencies: Vec<&str>,
+        id_and_name: (Option<String>, String),
+        mapped_type: GraphQL,
+    ) {
+        fn assert(
+            schema_type: impl ExtendType,
+            dependencies: Vec<&str>,
+            id_and_name: (Option<String>, String),
+            mapped_type: GraphQL,
+            raw: String,
+        ) {
+            assert_eq!(schema_type.get_dependencies(), dependencies);
+            assert_eq!(schema_type.get_id_and_name(), id_and_name);
+            assert_eq!(schema_type.get_mapped_type(), mapped_type);
+            assert_eq!(schema_type.get_raw(), raw);
+        };
+
+        let document = parse_schema::<String>(contents).unwrap().to_owned();
+
+        match document.definitions.get(0).unwrap().to_owned() {
+            schema::Definition::TypeDefinition(type_definition) => match type_definition {
+                schema::TypeDefinition::Enum(enum_type) => {
+                    assert(
+                        enum_type,
+                        dependencies,
+                        id_and_name,
+                        mapped_type,
+                        document.to_string(),
+                    );
+                }
+                schema::TypeDefinition::Scalar(_) => {}
+                schema::TypeDefinition::Object(_) => {}
+                schema::TypeDefinition::Interface(_) => {}
+                schema::TypeDefinition::Union(_) => {}
+                schema::TypeDefinition::InputObject(_) => {}
+            },
+
+            schema::Definition::SchemaDefinition(_) => {}
+            schema::Definition::TypeExtension(type_extension) => match type_extension {
+                schema::TypeExtension::Enum(enum_type_extension) => assert(
+                    enum_type_extension,
+                    dependencies,
+                    id_and_name,
+                    mapped_type,
+                    document.to_string(),
+                ),
+                schema::TypeExtension::Scalar(_) => {}
+                schema::TypeExtension::Object(_) => {}
+                schema::TypeExtension::Interface(_) => {}
+                schema::TypeExtension::Union(_) => {}
+                schema::TypeExtension::InputObject(_) => {}
+            },
+            schema::Definition::DirectiveDefinition(_) => {}
+        };
+    }
+
+    #[test]
+    fn test_enum() {
+        match_and_assert(
+            "enum Foo @foo { A @bar B C}",
+            vec!["foo", "bar"],
+            (None, String::from("Foo")),
+            GraphQL::TypeDefinition(GraphQLType::Enum),
+        );
+    }
+
+    #[test]
+    fn test_extend_enum() {
+        match_and_assert(
+            "extend enum Foo @foo { D @bar }",
+            vec!["foo", "bar", "Foo"],
+            (Some(String::from("Foo__")), String::from("Foo")),
+            GraphQL::TypeExtension(GraphQLType::Enum),
+        );
+    }
+}
