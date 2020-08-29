@@ -280,7 +280,7 @@ mod tests {
     #[async_std::test]
     async fn check_dependencies_and_graph() {
         let house_contents = "type House { price: Int! rooms: Int! @test owner: Owner! }";
-        let house_dependencies = vec!["Int", "test", "Int", "Owner"];
+        let house_dependencies = vec!["Int", "Int", "Owner", "test"];
         let house_name = "House";
         let house_path = "some_path/House.gql";
 
