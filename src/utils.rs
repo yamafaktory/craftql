@@ -302,7 +302,7 @@ mod tests {
         // There no determined insertion order, assign dependencies lists based
         // on respective assumed lengths.
         let (current_owner_dependencies, current_house_dependencies, is_same_order) =
-            if dependencies.get(&NodeIndex::new(0)).unwrap().len() == 4 {
+            if dependencies.get(&NodeIndex::new(0)).unwrap().len() == house_dependencies.len() {
                 (
                     dependencies.get(&NodeIndex::new(1)).unwrap(),
                     dependencies.get(&NodeIndex::new(0)).unwrap(),
