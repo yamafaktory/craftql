@@ -33,7 +33,6 @@ pub async fn find_neighbors(
     match graph.node_indices().find(|index| graph[*index].id == *node) {
         Some(index) => graph
             .neighbors_directed(index, direction)
-            .into_iter()
             .map(|n| &graph.node_weight(n).unwrap().entity)
             .cloned()
             .collect::<Vec<Entity>>(),
