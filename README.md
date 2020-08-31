@@ -19,12 +19,14 @@ ARGS:
 
 FLAGS:
     -h, --help       Prints help information
-    -o, --orphans    Finds and display orphan(s) node(s)
+    -O, --orphans    Finds and displays orphan(s) node(s)
     -V, --version    Prints version information
 
 OPTIONS:
-    -n, --node <node>         Finds and display one node
-    -N, --nodes <nodes>...    Finds and display multiple nodes
+    -i, --incoming-dependencies <incoming-dependencies>    Finds and displays incoming dependencies of a node
+    -n, --node <node>                                      Finds and displays one node
+    -N, --nodes <nodes>...                                 Finds and displays multiple nodes
+    -o, --outgoing-dependencies <outgoing-dependencies>    Finds and displays outgoing dependencies of a node
 ```
 
 ### Output a graphviz .dot format
@@ -174,7 +176,59 @@ type Orphan {
 }
 ```
 
-## TODO
+### Find and display incoming dependencies of a node 
 
-- Add flag to list dependencies for a given node
-- More to come!
+```sh
+craftql tests/fixtures --incoming-dependencies Starship
+
+# tests/fixtures/Types/Types/extension.graphql
+extend type Starship {
+  antiGravity: Boolean!
+}
+
+
+# tests/fixtures/Types/Enums/LengthUnit.graphql
+enum LengthUnit {
+  METER
+  FOOT
+}
+
+
+# tests/fixtures/Directives/deprecated.graphql
+directive @deprecated(reason: String = "No longer supported") on FIELD_DEFINITION | ENUM_VALUE
+```
+
+### Find and display outgoing dependencies of a node 
+
+```sh
+craftql tests/fixtures --outgoing-dependencies Starship
+
+# tests/fixtures/Types/Types/b.graphql
+type Human implements Character {
+  id: ID!
+  name: String!
+  homePlanet: String
+  height(unit: LengthUnit = METER): Float
+  mass: Float
+  friends: [Character]
+  friendsConnection(first: Int, after: ID): FriendsConnection!
+  appearsIn: [Episode]!
+  starships: [Starship]
+}
+
+
+# tests/fixtures/Types/Unions/SearchResults.graphql
+union SearchResult @test = Human | Droid | Starship
+
+
+# tests/fixtures/Types/Types/a.gql
+type Query {
+  hero(episode: Episode): Character
+  reviews(episode: Episode!): [Review]
+  search(text: String): [SearchResult]
+  character(id: ID!): Character
+  droid(id: ID!): Droid
+  human(id: ID!): Human
+  starship(id: ID!): Starship
+}
+```

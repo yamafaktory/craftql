@@ -14,7 +14,7 @@ use async_std::{
     sync::{Arc, Mutex},
 };
 use graphql_parser::{parse_schema, schema};
-use petgraph::{graph::NodeIndex, Direction::Outgoing};
+use petgraph::{graph::NodeIndex, Direction};
 use std::{collections::HashMap, process::exit};
 
 /// Check if a file extension is allowed.
@@ -22,12 +22,51 @@ fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
 }
 
+/// Find and return neighbors of a node.
+pub async fn find_neighbors(
+    node: String,
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    direction: Direction,
+) -> Vec<Entity> {
+    let graph = graph.lock().await;
+
+    match graph.node_indices().find(|index| graph[*index].id == *node) {
+        Some(index) => graph
+            .neighbors_directed(index, direction)
+            .into_iter()
+            .map(|n| &graph.node_weight(n).unwrap().entity)
+            .cloned()
+            .collect::<Vec<Entity>>(),
+        None => vec![],
+    }
+}
+
+/// Print orphan nodes.
+pub async fn find_and_print_neighbors(
+    node: String,
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    direction: Direction,
+) -> Result<()> {
+    let dependencies = find_neighbors(node, graph, direction).await;
+
+    if dependencies.is_empty() {
+        eprintln!("No orphan node found");
+        exit(1);
+    }
+
+    for dependency in dependencies {
+        println!("{}", dependency);
+    }
+
+    Ok(())
+}
+
 /// Find and return orphan nodes.
 pub async fn find_orphans(
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
 ) -> Vec<Entity> {
     let graph = graph.lock().await;
-    let externals = graph.externals(Outgoing);
+    let externals = graph.externals(Direction::Outgoing);
     let has_root_schema = graph
         .node_indices()
         .any(|index| graph[index].id == "schema");
@@ -57,7 +96,7 @@ pub async fn find_orphans(
 }
 
 /// Print orphan nodes.
-pub async fn print_orphans(
+pub async fn find_and_print_orphans(
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
 ) -> Result<()> {
     let orphans = find_orphans(graph).await;
@@ -395,7 +434,7 @@ mod tests {
             assert_eq!(graph.edge_count(), 0);
         });
 
-        debug_assert_eq!(find_orphans(shared_data.graph).await.len(), 1);
+        assert_eq!(find_orphans(shared_data.graph).await.len(), 1);
     }
 
     #[async_std::test]
@@ -412,7 +451,7 @@ mod tests {
             assert_eq!(graph.edge_count(), 0);
         });
 
-        debug_assert_eq!(find_orphans(shared_data.graph).await.len(), 0);
+        assert_eq!(find_orphans(shared_data.graph).await.len(), 0);
     }
 
     #[async_std::test]
@@ -439,6 +478,63 @@ mod tests {
             assert_eq!(graph.edge_count(), 0);
         });
 
-        debug_assert_eq!(find_orphans(shared_data.graph).await.len(), 0);
+        assert_eq!(find_orphans(shared_data.graph).await.len(), 0);
+    }
+
+    #[async_std::test]
+    async fn check_neighbors() {
+        let shared_data = scaffold(vec![
+            (
+                PathBuf::from("some_path/Foo.gql"),
+                String::from("type Foo { field: Bar }"),
+            ),
+            (
+                PathBuf::from("some_path/Bar.gql"),
+                String::from("interface Bar { id: ID!}"),
+            ),
+        ])
+        .await;
+
+        task::block_on(async {
+            let graph = &*shared_data.graph.lock().await;
+            assert_eq!(graph.node_count(), 2);
+            assert_eq!(graph.edge_count(), 1);
+        });
+
+        // Foo depends on Bar but is not a dependency.
+        let incoming = find_neighbors(
+            String::from("Foo"),
+            shared_data.graph.clone(),
+            Direction::Incoming,
+        )
+        .await;
+        let outgoing = find_neighbors(
+            String::from("Foo"),
+            shared_data.graph.clone(),
+            Direction::Outgoing,
+        )
+        .await;
+
+        assert_eq!(incoming.len(), 1);
+        assert_eq!(incoming.first().unwrap().name, "Bar");
+        assert_eq!(outgoing.len(), 0);
+
+        // Bar depends on nothing but is a dependency of Foo.
+        let incoming = find_neighbors(
+            String::from("Bar"),
+            shared_data.graph.clone(),
+            Direction::Incoming,
+        )
+        .await;
+        let outgoing = find_neighbors(
+            String::from("Bar"),
+            shared_data.graph.clone(),
+            Direction::Outgoing,
+        )
+        .await;
+
+        assert_eq!(incoming.len(), 0);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing.first().unwrap().name, "Foo");
     }
 }
