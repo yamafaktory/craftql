@@ -24,16 +24,16 @@ fn is_extension_allowed(extension: &str) -> bool {
 
 /// Find and return neighbors of a node.
 pub async fn find_neighbors(
-    node: String,
+    node: &str,
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
     direction: Direction,
 ) -> Vec<Entity> {
     let graph = graph.lock().await;
 
-    match graph.node_indices().find(|index| graph[*index].id == *node) {
+    match graph.node_indices().find(|index| graph[*index].id == node) {
         Some(index) => graph
             .neighbors_directed(index, direction)
-            .map(|n| &graph.node_weight(n).unwrap().entity)
+            .map(|index| &graph.node_weight(index).unwrap().entity)
             .cloned()
             .collect::<Vec<Entity>>(),
         None => vec![],
@@ -42,14 +42,19 @@ pub async fn find_neighbors(
 
 /// Print orphan nodes.
 pub async fn find_and_print_neighbors(
-    node: String,
+    node: &str,
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
     direction: Direction,
 ) -> Result<()> {
-    let dependencies = find_neighbors(node, graph, direction).await;
+    let graph_clone = graph.clone();
+
+    // Ensure that the node exists!
+    find_node(node, graph).await?;
+
+    let dependencies = find_neighbors(node, graph_clone, direction).await;
 
     if dependencies.is_empty() {
-        eprintln!("No orphan node found");
+        eprintln!("No dependencies found for node {}", node);
         exit(1);
     }
 
@@ -64,7 +69,7 @@ pub async fn find_and_print_neighbors(
 pub async fn find_orphans(
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
 ) -> Vec<Entity> {
-    let graph = graph.lock().await;
+    let graph = &graph.lock().await;
     let externals = graph.externals(Direction::Outgoing);
     let has_root_schema = graph
         .node_indices()
@@ -72,7 +77,7 @@ pub async fn find_orphans(
 
     externals
         .filter_map(|index| {
-            let entity = &graph.node_weight(index).unwrap().entity;
+            let entity = graph.node_weight(index).unwrap().entity.clone();
 
             match entity.graphql {
                 // Skip root schema has it can't have outgoing edges.
@@ -90,7 +95,6 @@ pub async fn find_orphans(
                 _ => Some(entity),
             }
         })
-        .cloned()
         .collect::<Vec<Entity>>()
 }
 
@@ -114,12 +118,12 @@ pub async fn find_and_print_orphans(
 
 /// Find a node by name, display it with syntax highlighting or exit.
 pub async fn find_node(
-    node: String,
+    node: &str,
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
 ) -> Result<()> {
     let graph = graph.lock().await;
 
-    match graph.node_indices().find(|index| graph[*index].id == *node) {
+    match graph.node_indices().find(|index| graph[*index].id == node) {
         Some(index) => {
             let entity = &graph.node_weight(index).unwrap().entity;
 
@@ -501,36 +505,16 @@ mod tests {
         });
 
         // Foo depends on Bar but is not a dependency.
-        let incoming = find_neighbors(
-            String::from("Foo"),
-            shared_data.graph.clone(),
-            Direction::Incoming,
-        )
-        .await;
-        let outgoing = find_neighbors(
-            String::from("Foo"),
-            shared_data.graph.clone(),
-            Direction::Outgoing,
-        )
-        .await;
+        let incoming = find_neighbors("Foo", shared_data.graph.clone(), Direction::Incoming).await;
+        let outgoing = find_neighbors("Foo", shared_data.graph.clone(), Direction::Outgoing).await;
 
         assert_eq!(incoming.len(), 1);
         assert_eq!(incoming.first().unwrap().name, "Bar");
         assert_eq!(outgoing.len(), 0);
 
         // Bar depends on nothing but is a dependency of Foo.
-        let incoming = find_neighbors(
-            String::from("Bar"),
-            shared_data.graph.clone(),
-            Direction::Incoming,
-        )
-        .await;
-        let outgoing = find_neighbors(
-            String::from("Bar"),
-            shared_data.graph.clone(),
-            Direction::Outgoing,
-        )
-        .await;
+        let incoming = find_neighbors("Bar", shared_data.graph.clone(), Direction::Incoming).await;
+        let outgoing = find_neighbors("Bar", shared_data.graph.clone(), Direction::Outgoing).await;
 
         assert_eq!(incoming.len(), 0);
         assert_eq!(outgoing.len(), 1);
