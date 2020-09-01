@@ -11,6 +11,14 @@ where
     String::from(text.as_ref())
 }
 
+/// Convert text to directive identifier.
+fn convert_text_to_directive<'a, T>(text: &T::Value) -> String
+where
+    T: schema::Text<'a>,
+{
+    format!("@{}", convert_text_to_string::<T>(text))
+}
+
 /// Extend id for type extensions.
 /// Only used internally to distinguish between a type and its extension.
 fn get_extended_id(id: String) -> String {
@@ -24,7 +32,7 @@ where
 {
     directives
         .iter()
-        .map(|directive| convert_text_to_string::<T>(&directive.name))
+        .map(|directive| convert_text_to_directive::<T>(&directive.name))
         .collect::<Vec<String>>()
 }
 
@@ -418,7 +426,7 @@ where
         )
     }
     fn get_id_and_name(&self) -> (Option<String>, String) {
-        let name = convert_text_to_string::<T>(&self.name);
+        let name = convert_text_to_directive::<T>(&self.name);
         (None, name)
     }
     fn get_mapped_type(&self) -> GraphQL {
@@ -492,7 +500,7 @@ mod tests {
     fn test_enum() {
         match_and_assert(
             "enum Foo @foo { A @bar B C}",
-            vec!["bar", "foo"],
+            vec!["@bar", "@foo"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::Enum),
         );
@@ -502,7 +510,7 @@ mod tests {
     fn test_extend_enum() {
         match_and_assert(
             "extend enum Foo @foo { D @bar }",
-            vec!["bar", "foo", "Foo"],
+            vec!["@bar", "@foo", "Foo"],
             (Some(String::from("Foo__")), String::from("Foo")),
             GraphQL::TypeExtension(GraphQLType::Enum),
         );
@@ -512,7 +520,7 @@ mod tests {
     fn test_input_object() {
         match_and_assert(
             "input Foo @test { bar: Int! @deprecated }",
-            vec!["deprecated", "Foo", "Int", "test"],
+            vec!["@deprecated", "@test", "Foo", "Int"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::InputObject),
         );
@@ -522,7 +530,7 @@ mod tests {
     fn test_extend_input_object() {
         match_and_assert(
             "extend input Foo @test { woot: Int! @deprecated }",
-            vec!["deprecated", "Foo", "Int", "test"],
+            vec!["@deprecated", "@test", "Foo", "Int"],
             (Some(String::from("Foo__")), String::from("Foo")),
             GraphQL::TypeExtension(GraphQLType::InputObject),
         );
@@ -532,7 +540,7 @@ mod tests {
     fn test_interface() {
         match_and_assert(
             "interface Foo @test { id: ID! @deprecated }",
-            vec!["deprecated", "ID", "test"],
+            vec!["@deprecated", "@test", "ID"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::Interface),
         );
@@ -542,7 +550,7 @@ mod tests {
     fn test_extend_inteface() {
         match_and_assert(
             "extend interface Foo @test { woot: String! @deprecated }",
-            vec!["deprecated", "Foo", "String", "test"],
+            vec!["@deprecated", "@test", "Foo", "String"],
             (Some(String::from("Foo__")), String::from("Foo")),
             GraphQL::TypeExtension(GraphQLType::Interface),
         );
@@ -552,7 +560,7 @@ mod tests {
     fn test_object() {
         match_and_assert(
             "type Foo implements Bar @test { id: ID! @skip }",
-            vec!["Bar", "ID", "skip", "test"],
+            vec!["@skip", "@test", "Bar", "ID"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::Object),
         );
@@ -562,7 +570,7 @@ mod tests {
     fn test_extend_object() {
         match_and_assert(
             "extend type Foo @test { name: String! @skip }",
-            vec!["Foo", "skip", "String", "test"],
+            vec!["@skip", "@test", "Foo", "String"],
             (Some(String::from("Foo__")), String::from("Foo")),
             GraphQL::TypeExtension(GraphQLType::Object),
         );
@@ -572,7 +580,7 @@ mod tests {
     fn test_scalar() {
         match_and_assert(
             "scalar Foo @test",
-            vec!["test"],
+            vec!["@test"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::Scalar),
         );
@@ -582,7 +590,7 @@ mod tests {
     fn test_extend_scalar() {
         match_and_assert(
             "extend scalar Foo @test",
-            vec!["Foo", "test"],
+            vec!["@test", "Foo"],
             (Some(String::from("Foo__")), String::from("Foo")),
             GraphQL::TypeExtension(GraphQLType::Scalar),
         );
@@ -592,7 +600,7 @@ mod tests {
     fn test_union() {
         match_and_assert(
             "union Foo @test = A | B | C",
-            vec!["A", "B", "C", "test"],
+            vec!["@test", "A", "B", "C"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::Union),
         );
@@ -602,7 +610,7 @@ mod tests {
     fn test_extend_union() {
         match_and_assert(
             "extend union Foo @test = D",
-            vec!["D", "Foo", "test"],
+            vec!["@test", "D", "Foo"],
             (Some(String::from("Foo__")), String::from("Foo")),
             GraphQL::TypeExtension(GraphQLType::Union),
         );
@@ -613,7 +621,7 @@ mod tests {
         match_and_assert(
             r#"directive @foo( reason: String = "Woot!" ) on FIELD_DEFINITION | ENUM_VALUE"#,
             vec!["String"],
-            (None, String::from("foo")),
+            (None, String::from("@foo")),
             GraphQL::Directive,
         );
     }
