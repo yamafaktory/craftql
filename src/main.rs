@@ -64,26 +64,26 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    if let Some(node) = opts.incoming_dependencies {
+    if let Some(ref node) = opts.incoming_dependencies {
         find_and_print_neighbors(node, shared_data.graph.clone(), Direction::Incoming).await?;
 
         return Ok(());
     }
 
-    if let Some(node) = opts.outgoing_dependencies {
+    if let Some(ref node) = opts.outgoing_dependencies {
         find_and_print_neighbors(node, shared_data.graph.clone(), Direction::Outgoing).await?;
 
         return Ok(());
     }
 
-    if let Some(node) = opts.node {
+    if let Some(ref node) = opts.node {
         find_node(node, shared_data.graph.clone()).await?;
 
         return Ok(());
     }
 
     if !opts.nodes.is_empty() {
-        for node in opts.nodes {
+        for ref node in opts.nodes {
             find_node(node, shared_data.graph.clone()).await?;
         }
 
