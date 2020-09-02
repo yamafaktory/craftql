@@ -22,6 +22,26 @@ fn is_extension_allowed(extension: &str) -> bool {
     ALLOWED_EXTENSIONS.to_vec().contains(&extension)
 }
 
+/// Print missing definitions.
+pub async fn print_missing_definitions(
+    graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    missing_definitions: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
+) -> Result<()> {
+    let graph = graph.lock().await;
+    let missing_definitions = missing_definitions.lock().await;
+
+    for (node_index, definitions) in missing_definitions.iter() {
+        println!(
+            "\n# {} {} not defined in:{}",
+            definitions.join(", "),
+            if definitions.len() == 1 { "is" } else { "are" },
+            graph.node_weight(*node_index).unwrap().entity,
+        );
+    }
+
+    Ok(())
+}
+
 /// Find and return neighbors of a node.
 pub async fn find_neighbors(
     node: &str,
@@ -224,6 +244,7 @@ pub async fn populate_graph_from_ast(
     dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
     files: Arc<Mutex<HashMap<PathBuf, String>>>,
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    missing_definitions: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
 ) -> Result<()> {
     let files = files.lock().await;
 
@@ -258,14 +279,16 @@ pub async fn populate_graph_from_ast(
     let dependencies = &*dependencies.lock().await;
 
     for (node_index, inner_dependencies) in dependencies {
+        let mut node_missing_definitions: Vec<String> = vec![];
+
         for dependency in inner_dependencies {
             let mut graph = graph.lock().await;
-            // https://docs.rs/petgraph/0.5.1/petgraph/graph/struct.Graph.html#method.node_indices
-            if let Some(index) = graph
+
+            match graph
                 .node_indices()
                 .find(|index| graph[*index].id == *dependency)
             {
-                match &graph[*node_index].entity.graphql {
+                Some(index) => match &graph[*node_index].entity.graphql {
                     // Reverse edge for extension types.
                     GraphQL::TypeExtension(GraphQLType::Enum)
                     | GraphQL::TypeExtension(GraphQLType::InputObject)
@@ -278,8 +301,23 @@ pub async fn populate_graph_from_ast(
                     _ => {
                         graph.update_edge(index, *node_index, (index, *node_index));
                     }
-                };
+                },
+                None => match dependency.as_str() {
+                    // Built-in Scalars, skip.
+                    "Boolean" | "Float" | "ID" | "Int" | "String" => {}
+                    // Keep track of possible missing definitions, should have been resolved at this point!
+                    _ => {
+                        node_missing_definitions.push(dependency.to_owned());
+                    }
+                },
             }
+        }
+
+        if !node_missing_definitions.is_empty() {
+            missing_definitions
+                .lock()
+                .await
+                .insert(*node_index, node_missing_definitions);
         }
     }
 
@@ -312,6 +350,7 @@ mod tests {
             shared_data_for_populate.dependencies,
             shared_data_for_populate.files,
             shared_data_for_populate.graph,
+            shared_data_for_populate.missing_definitions,
         )
         .await
         .unwrap();

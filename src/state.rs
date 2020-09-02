@@ -128,6 +128,7 @@ pub struct Data {
     pub dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
     pub files: Arc<Mutex<HashMap<PathBuf, String>>>,
     pub graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    pub missing_definitions: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
 }
 
 impl State {
@@ -137,6 +138,7 @@ impl State {
                 dependencies: Arc::new(Mutex::new(HashMap::new())),
                 files: Arc::new(Mutex::new(HashMap::new())),
                 graph: Arc::new(Mutex::new(Graph::<Node, (NodeIndex, NodeIndex)>::new())),
+                missing_definitions: Arc::new(Mutex::new(HashMap::new())),
             },
         }
     }

@@ -14,7 +14,7 @@ use crate::{
     state::State,
     utils::{
         find_and_print_neighbors, find_and_print_orphans, find_node, get_files,
-        populate_graph_from_ast,
+        populate_graph_from_ast, print_missing_definitions,
     },
 };
 
@@ -32,6 +32,9 @@ struct Opts {
     /// Finds and displays incoming dependencies of a node
     #[clap(short, long)]
     incoming_dependencies: Option<String>,
+    /// Finds and displays missing definitions
+    #[clap(short, long)]
+    missing_definitions: bool,
     /// Finds and displays orphan(s) node(s)
     #[clap(short = "O", long)]
     orphans: bool,
@@ -58,9 +61,10 @@ async fn main() -> Result<()> {
 
     // Populate the graph
     populate_graph_from_ast(
-        shared_data.dependencies,
+        shared_data_for_populate.dependencies,
         shared_data_for_populate.files,
         shared_data_for_populate.graph,
+        shared_data_for_populate.missing_definitions,
     )
     .await?;
 
@@ -86,6 +90,16 @@ async fn main() -> Result<()> {
         for ref node in opts.nodes {
             find_node(node, shared_data.graph.clone()).await?;
         }
+
+        return Ok(());
+    }
+
+    if opts.missing_definitions {
+        print_missing_definitions(
+            shared_data.graph.clone(),
+            shared_data.missing_definitions.clone(),
+        )
+        .await?;
 
         return Ok(());
     }
