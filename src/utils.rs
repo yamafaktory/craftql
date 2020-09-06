@@ -402,7 +402,7 @@ mod tests {
         assert_eq!(current_house_dependencies, &house_dependencies);
 
         // Graph should contains 2 nodes and 1 edge.
-        let graph = &*shared_data.graph.lock().await;
+        let graph = shared_data.graph.lock().await;
         assert_eq!(graph.node_count(), 2);
         assert_eq!(graph.edge_count(), 1);
 
@@ -471,7 +471,7 @@ mod tests {
         .await;
 
         task::block_on(async {
-            let graph = &*shared_data.graph.lock().await;
+            let graph = shared_data.graph.lock().await;
             assert_eq!(graph.node_count(), 1);
             assert_eq!(graph.edge_count(), 0);
         });
@@ -488,7 +488,7 @@ mod tests {
         .await;
 
         task::block_on(async {
-            let graph = &*shared_data.graph.lock().await;
+            let graph = shared_data.graph.lock().await;
             assert_eq!(graph.node_count(), 1);
             assert_eq!(graph.edge_count(), 0);
         });
@@ -515,7 +515,7 @@ mod tests {
         .await;
 
         task::block_on(async {
-            let graph = &*shared_data.graph.lock().await;
+            let graph = shared_data.graph.lock().await;
             assert_eq!(graph.node_count(), 3);
             assert_eq!(graph.edge_count(), 0);
         });
@@ -537,11 +537,9 @@ mod tests {
         ])
         .await;
 
-        task::block_on(async {
-            let graph = &*shared_data.graph.lock().await;
-            assert_eq!(graph.node_count(), 2);
-            assert_eq!(graph.edge_count(), 1);
-        });
+        let graph = shared_data.graph.lock().await;
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.edge_count(), 1);
 
         // Foo depends on Bar but is not a dependency.
         let incoming = find_neighbors("Foo", shared_data.graph.clone(), Direction::Incoming).await;
@@ -558,5 +556,45 @@ mod tests {
         assert_eq!(incoming.len(), 0);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing.first().unwrap().name, "Foo");
+    }
+
+    #[async_std::test]
+    async fn check_missing_definitions() {
+        let shared_data = scaffold(vec![
+            (
+                PathBuf::from("some_path/Foo.gql"),
+                String::from("type Foo { field: Woot, otherField: Why }"),
+            ),
+            (
+                PathBuf::from("some_path/Bar.gql"),
+                String::from("interface Bar { id: What!}"),
+            ),
+        ])
+        .await;
+
+        let graph = shared_data.graph.lock().await;
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.edge_count(), 0);
+
+        let missing_definitions = shared_data.missing_definitions.lock().await;
+
+        let (bar_missing_dependencies, foo_missing_dependencies) =
+            if missing_definitions.get(&NodeIndex::new(0)).unwrap().len() == 2 {
+                (
+                    missing_definitions.get(&NodeIndex::new(1)).unwrap(),
+                    missing_definitions.get(&NodeIndex::new(0)).unwrap(),
+                )
+            } else {
+                (
+                    missing_definitions.get(&NodeIndex::new(0)).unwrap(),
+                    missing_definitions.get(&NodeIndex::new(1)).unwrap(),
+                )
+            };
+
+        assert_eq!(
+            *foo_missing_dependencies,
+            vec![String::from("Why"), String::from("Woot")]
+        );
+        assert_eq!(*bar_missing_dependencies, vec![String::from("What")]);
     }
 }
