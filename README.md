@@ -18,9 +18,10 @@ ARGS:
     <path>    Path to get files from
 
 FLAGS:
-    -h, --help       Prints help information
-    -O, --orphans    Finds and displays orphan(s) node(s)
-    -V, --version    Prints version information
+    -h, --help                   Prints help information
+    -m, --missing-definitions    Finds and displays missing definition(s)
+    -O, --orphans                Finds and displays orphan(s) node(s)
+    -V, --version                Prints version information
 
 OPTIONS:
     -i, --incoming-dependencies <incoming-dependencies>    Finds and displays incoming dependencies of a node
@@ -231,4 +232,27 @@ type Query {
   human(id: ID!): Human
   starship(id: ID!): Starship
 }
+```
+
+### Find and display missing definition(s)
+
+```sh
+craftql tests/fixtures --orphans
+
+# Color is not defined in:
+# tests/fixtures/Types/Interfaces/Character.graphql
+interface Character @test {
+  id: ID!
+  name: String!
+  friends: [Character]
+  friendsConnection(first: Int, after: ID): FriendsConnection!
+  appearsIn: [Episode]!
+  cute: Boolean! @deprecated
+  preferedColor: Color
+}
+
+
+# Ewok, Gungan are not defined in:
+# tests/fixtures/Types/Unions/SearchResultExtension.graphql
+extend union SearchResult = Ewok | Gungan
 ```
