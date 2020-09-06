@@ -32,7 +32,7 @@ struct Opts {
     /// Finds and displays incoming dependencies of a node
     #[clap(short, long)]
     incoming_dependencies: Option<String>,
-    /// Finds and displays missing definitions
+    /// Finds and displays missing definition(s)
     #[clap(short, long)]
     missing_definitions: bool,
     /// Finds and displays orphan(s) node(s)
