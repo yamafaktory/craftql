@@ -1,1 +1,1 @@
-extend union SearchResult = Ewok
+extend union SearchResult = Ewok | Gungan

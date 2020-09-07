@@ -11,5 +11,7 @@ interface Character @test {
   # The movies this character appears in
   appearsIn: [Episode]!
   # Well..
-  cute: Bool! @deprecated
+  cute: Boolean! @deprecated
+  # Missing definition
+  preferedColor: Color
 }
