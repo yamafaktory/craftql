@@ -537,9 +537,11 @@ mod tests {
         ])
         .await;
 
-        let graph = shared_data.graph.lock().await;
-        assert_eq!(graph.node_count(), 2);
-        assert_eq!(graph.edge_count(), 1);
+        task::block_on(async {
+            let graph = shared_data.graph.lock().await;
+            assert_eq!(graph.node_count(), 2);
+            assert_eq!(graph.edge_count(), 1);
+        });
 
         // Foo depends on Bar but is not a dependency.
         let incoming = find_neighbors("Foo", shared_data.graph.clone(), Direction::Incoming).await;
