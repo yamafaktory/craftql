@@ -5,28 +5,40 @@ use async_std::{
 use petgraph::{graph::NodeIndex, Graph};
 use std::{collections::HashMap, fmt};
 
+/// Global state.
 #[derive(Debug)]
 pub struct State {
+    /// Shared part of the state.
     pub shared: Data,
 }
 
 /// Core GraphQL types used for definitions and extensions.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum GraphQLType {
+    /// Enum type.
     Enum,
+    /// InputObject type.
     InputObject,
+    /// Interface type.
     Interface,
+    /// Object type.
     Object,
+    /// Scalar type.
     Scalar,
+    /// Union type.
     Union,
 }
 
 /// Derived and simplified from graphql_parser::schema enums.
 #[derive(Clone, PartialEq)]
 pub enum GraphQL<T = GraphQLType> {
+    /// Directive type.
     Directive,
+    /// Schema type.
     Schema,
+    /// TypeDefinition type.
     TypeDefinition(T),
+    /// TypeExtension type.
     TypeExtension(T),
 }
 
@@ -47,15 +59,22 @@ where
 /// Represents a GraphQL entity.
 #[derive(Clone)]
 pub struct Entity {
+    /// Dependencies of an entity.
     pub dependencies: Vec<String>,
+    /// GraphQL type of the entity.
     pub graphql: GraphQL,
+    /// Id of the entity.
     pub id: String,
+    /// Name of the entity.
     pub name: String,
+    /// Path of the entity.
     pub path: PathBuf,
+    /// Raw representation of the entity.
     pub raw: String,
 }
 
 impl Entity {
+    /// Method to create a new Entity.
     pub fn new(
         dependencies: Vec<String>,
         graphql: GraphQL,
@@ -103,14 +122,17 @@ impl fmt::Display for Entity {
     }
 }
 
+/// A Node containing an Entity and a unique id.
 pub struct Node {
+    /// Node's entity.
     pub entity: Entity,
-    // Using the entity name as id is safe as it is unique.
-    // http://spec.graphql.org/draft/#sec-Schema
+    /// Using the entity name as id is safe as it is unique.
+    /// http://spec.graphql.org/draft/#sec-Schema
     pub id: String,
 }
 
 impl Node {
+    /// Method to create a new Node.
     pub fn new(entity: Entity, id: String) -> Self {
         Node { entity, id }
     }
@@ -122,16 +144,21 @@ impl fmt::Debug for Node {
     }
 }
 
+/// Data holding the thread-safe mutexes.
 #[derive(Debug, Clone)]
 pub struct Data {
-    // Keep track of the dependencies for edges.
+    /// Dependencies mutex.
     pub dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
+    /// Files mutex.
     pub files: Arc<Mutex<HashMap<PathBuf, String>>>,
+    /// Graph mutex.
     pub graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
+    /// Missing definition mutex.
     pub missing_definitions: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
 }
 
 impl State {
+    /// Method to create a new State.
     pub fn new() -> Self {
         State {
             shared: Data {
@@ -141,5 +168,11 @@ impl State {
                 missing_definitions: Arc::new(Mutex::new(HashMap::new())),
             },
         }
+    }
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State::new()
     }
 }

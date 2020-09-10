@@ -1,26 +1,16 @@
-//! # CraftQL
-//! TODO
-
 #![forbid(rust_2018_idioms)]
-#![warn(missing_debug_implementations, missing_docs)]
 #![deny(unsafe_code, nonstandard_style)]
 
-mod config;
-mod extend_types;
-mod state;
-mod utils;
-
-use crate::{
+use anyhow::Result;
+use async_std::path::PathBuf;
+use clap::{crate_authors, crate_description, crate_version, Clap};
+use craftql::{
     state::State,
     utils::{
         find_and_print_neighbors, find_and_print_orphans, find_node, get_files,
         populate_graph_from_ast, print_missing_definitions,
     },
 };
-
-use anyhow::Result;
-use async_std::path::PathBuf;
-use clap::{crate_authors, crate_description, crate_version, Clap};
 use petgraph::dot::{Config, Dot};
 use petgraph::Direction;
 
@@ -52,7 +42,7 @@ struct Opts {
 #[async_std::main]
 async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
-    let state = State::new();
+    let state = State::default();
     let shared_data = state.shared;
     let shared_data_for_populate = shared_data.clone();
 
