@@ -11,8 +11,10 @@ use craftql::{
         populate_graph_from_ast, print_missing_definitions,
     },
 };
-use petgraph::dot::{Config, Dot};
-use petgraph::Direction;
+use petgraph::{
+    dot::{Config, Dot},
+    Direction,
+};
 
 #[derive(Clap)]
 #[clap(author = crate_authors!(), about = crate_description!(), version = crate_version!())]
