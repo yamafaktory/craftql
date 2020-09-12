@@ -11,6 +11,14 @@ readme = "README.md"
 repository = "https://github.com/yamafaktory/craftql"
 version = "0.2.5-alpha.0"
 
+[lib]
+name = "craftql"
+path = "src/lib.rs"
+
+[[bin]]
+name = "craftql"
+path = "src/bin.rs"
+
 [dependencies]
 anyhow = "1.0.32"
 clap = "3.0.0-beta.1"

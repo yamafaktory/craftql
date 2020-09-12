@@ -88,10 +88,15 @@ where
         .collect::<Vec<String>>()
 }
 
+/// Trait providing extension methods for graphql_parser::schema.
 pub trait ExtendType {
+    /// Method to get the dependencies.
     fn get_dependencies(&self) -> Vec<String>;
+    /// Method to get id and the name, id is optional and can be copied from name.
     fn get_id_and_name(&self) -> (Option<String>, String);
+    /// Method to get the internal GraphQL mapped type.
     fn get_mapped_type(&self) -> GraphQL;
+    /// Method to get the raw representation.
     fn get_raw(&self) -> String;
 }
 
