@@ -187,8 +187,6 @@ where
                         .chain(get_dependencies_from_directives(
                             &input_object_type.directives,
                         ))
-                        // Add extension's source.
-                        .chain(vec![convert_text_to_string::<T>(&input_object_type.name)])
                         .collect::<Vec<String>>(),
                 )
             }
@@ -525,7 +523,7 @@ mod tests {
     fn test_input_object() {
         match_and_assert(
             "input Foo @test { bar: Int! @deprecated }",
-            vec!["@deprecated", "@test", "Foo", "Int"],
+            vec!["@deprecated", "@test", "Int"],
             (None, String::from("Foo")),
             GraphQL::TypeDefinition(GraphQLType::InputObject),
         );
