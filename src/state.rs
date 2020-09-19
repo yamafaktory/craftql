@@ -3,7 +3,7 @@ use async_std::{
     sync::{Arc, Mutex},
 };
 use petgraph::{graph::NodeIndex, Graph};
-use std::{collections::HashMap, fmt};
+use std::{char::ParseCharError, collections::HashMap, fmt, str::FromStr};
 
 /// Global state.
 #[derive(Debug)]
@@ -53,6 +53,25 @@ where
             GraphQL::TypeDefinition(graphql_type) => write!(f, "{:?}", graphql_type),
             GraphQL::TypeExtension(graphql_type) => write!(f, "{:?} extension", graphql_type),
         }
+    }
+}
+
+impl FromStr for GraphQL {
+    type Err = ParseCharError;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        Ok(match string {
+            "directive" => GraphQL::Directive,
+            "enum" => GraphQL::TypeDefinition(GraphQLType::Enum),
+            "input" => GraphQL::TypeDefinition(GraphQLType::InputObject),
+            "interface" => GraphQL::TypeDefinition(GraphQLType::Interface),
+            "object" => GraphQL::TypeDefinition(GraphQLType::Object),
+            "scalar" => GraphQL::TypeDefinition(GraphQLType::Scalar),
+            "schema" => GraphQL::Schema,
+            "union" => GraphQL::TypeDefinition(GraphQLType::Union),
+            // Default to schema if unknown.
+            _ => GraphQL::Schema,
+        })
     }
 }
 

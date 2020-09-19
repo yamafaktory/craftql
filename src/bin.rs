@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_std::path::PathBuf;
 use clap::{crate_authors, crate_description, crate_version, Clap};
 use craftql::{
-    state::State,
+    state::{GraphQL, State},
     utils::{
         find_and_print_neighbors, find_and_print_orphans, find_node, get_files,
         populate_graph_from_ast, print_missing_definitions,
@@ -39,6 +39,9 @@ struct Opts {
     /// Finds and displays multiple nodes
     #[clap(short = "N", long)]
     nodes: Vec<String>,
+    /// Filter nodes by GraphQL type(s): directive, enum, input, interface, object, scalar, schema, union
+    #[clap(short, long)]
+    filter: Vec<GraphQL>,
 }
 
 #[async_std::main]
@@ -51,10 +54,11 @@ async fn main() -> Result<()> {
     // Walk the GraphQL files and populate the data.
     get_files(opts.path, shared_data.files).await?;
 
-    // Populate the graph
+    // Populate the graph.
     populate_graph_from_ast(
         shared_data_for_populate.dependencies,
         shared_data_for_populate.files,
+        &opts.filter,
         shared_data_for_populate.graph,
         shared_data_for_populate.missing_definitions,
     )
