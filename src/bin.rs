@@ -39,8 +39,23 @@ struct Opts {
     /// Finds and displays multiple nodes
     #[clap(short = "N", long)]
     nodes: Vec<String>,
-    /// Filter nodes by GraphQL type(s): directive, enum, input, interface, object, scalar, schema, union
-    #[clap(short, long)]
+    /// Filter nodes by GraphQL type(s)
+    ///
+    /// - directive
+    /// - enum
+    /// - enum_extension
+    /// - input
+    /// - input_extension
+    /// - interface
+    /// - interface_extension
+    /// - object
+    /// - object_extension
+    /// - scalar
+    /// - scalar_extension
+    /// - schema
+    /// - union
+    /// - union_extension
+    #[clap(short, long, verbatim_doc_comment)]
     filter: Vec<GraphQL>,
 }
 
