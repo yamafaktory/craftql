@@ -3,7 +3,7 @@ use async_std::{
     sync::{Arc, Mutex},
 };
 use petgraph::{graph::NodeIndex, Graph};
-use std::{char::ParseCharError, collections::HashMap, fmt, str::FromStr};
+use std::{collections::HashMap, fmt, str::FromStr};
 
 /// Global state.
 #[derive(Debug)]
@@ -57,21 +57,26 @@ where
 }
 
 impl FromStr for GraphQL {
-    type Err = ParseCharError;
+    type Err = String;
 
-    fn from_str(string: &str) -> Result<Self, Self::Err> {
-        Ok(match string {
-            "directive" => GraphQL::Directive,
-            "enum" => GraphQL::TypeDefinition(GraphQLType::Enum),
-            "input" => GraphQL::TypeDefinition(GraphQLType::InputObject),
-            "interface" => GraphQL::TypeDefinition(GraphQLType::Interface),
-            "object" => GraphQL::TypeDefinition(GraphQLType::Object),
-            "scalar" => GraphQL::TypeDefinition(GraphQLType::Scalar),
-            "schema" => GraphQL::Schema,
-            "union" => GraphQL::TypeDefinition(GraphQLType::Union),
-            // Default to schema if unknown.
-            _ => GraphQL::Schema,
-        })
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "directive" => Ok(GraphQL::Directive),
+            "enum" => Ok(GraphQL::TypeDefinition(GraphQLType::Enum)),
+            "enum_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Enum)),
+            "input_object" => Ok(GraphQL::TypeDefinition(GraphQLType::InputObject)),
+            "input_object_extension" => Ok(GraphQL::TypeExtension(GraphQLType::InputObject)),
+            "interface" => Ok(GraphQL::TypeDefinition(GraphQLType::Interface)),
+            "interface_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Interface)),
+            "object" => Ok(GraphQL::TypeDefinition(GraphQLType::Object)),
+            "object_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Object)),
+            "scalar" => Ok(GraphQL::TypeDefinition(GraphQLType::Scalar)),
+            "scalar_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Scalar)),
+            "schema" => Ok(GraphQL::Schema),
+            "union" => Ok(GraphQL::TypeDefinition(GraphQLType::Union)),
+            "union_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Union)),
+            unknown => Err(format!(r#"Unknown GraphQL type provided "{}""#, unknown)),
+        }
     }
 }
 
