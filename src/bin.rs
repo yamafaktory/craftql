@@ -44,8 +44,8 @@ struct Opts {
     /// - directive
     /// - enum
     /// - enum_extension
-    /// - input
-    /// - input_extension
+    /// - input_object
+    /// - input_object_extension
     /// - interface
     /// - interface_extension
     /// - object
