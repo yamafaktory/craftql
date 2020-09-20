@@ -1,10 +1,10 @@
 [package]
 authors = ["Davy Duperron <yamafaktory@gmail.com>"]
-categories = ["command-line-utilities"]
-description = "A CLI tool to manipulate GraphQL schemas and to output a graph data structure as a graphviz .dot format"
+categories = ["command-line-utilities", "development-tools"]
+description = "A CLI tool to visualize GraphQL schemas and to output a graph data structure as a graphviz .dot format"
 edition = "2018"
 exclude = [".github", "graph.svg", "rustfmt.toml"]
-keywords = ["graph", "graphviz", "graphql", "cli", "terminal"]
+keywords = ["cli", "graph", "graphql", "graphviz", "terminal"]
 license = "MIT"
 name = "craftql"
 readme = "README.md"

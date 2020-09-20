@@ -213,10 +213,17 @@ pub fn get_files(
 
 async fn add_node_and_dependencies(
     entity: impl ExtendType,
+    filter: &[GraphQL],
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
     dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
     file: &(PathBuf, String),
 ) -> Result<()> {
+    // If a filter is provided and the mapped type of the entity is not part of
+    // this filter, skip it.
+    if !filter.is_empty() && !filter.to_vec().contains(&entity.get_mapped_type()) {
+        return Ok(());
+    }
+
     let mut graph = graph.lock().await;
 
     let entity_dependencies = entity.get_dependencies();
@@ -243,6 +250,7 @@ async fn add_node_and_dependencies(
 pub async fn populate_graph_from_ast(
     dependencies: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
     files: Arc<Mutex<HashMap<PathBuf, String>>>,
+    filter: &[GraphQL],
     graph: Arc<Mutex<petgraph::Graph<Node, (NodeIndex, NodeIndex)>>>,
     missing_definitions: Arc<Mutex<HashMap<NodeIndex, Vec<String>>>>,
 ) -> Result<()> {
@@ -259,17 +267,26 @@ pub async fn populate_graph_from_ast(
 
             match definition {
                 schema::Definition::TypeDefinition(type_definition) => {
-                    add_node_and_dependencies(type_definition, graph, dependencies, &file).await?
+                    add_node_and_dependencies(type_definition, filter, graph, dependencies, &file)
+                        .await?
                 }
                 schema::Definition::TypeExtension(type_extension) => {
-                    add_node_and_dependencies(type_extension, graph, dependencies, &file).await?
+                    add_node_and_dependencies(type_extension, filter, graph, dependencies, &file)
+                        .await?
                 }
                 schema::Definition::SchemaDefinition(schema_definition) => {
-                    add_node_and_dependencies(schema_definition, graph, dependencies, &file).await?
+                    add_node_and_dependencies(schema_definition, filter, graph, dependencies, &file)
+                        .await?
                 }
                 schema::Definition::DirectiveDefinition(directive_definition) => {
-                    add_node_and_dependencies(directive_definition, graph, dependencies, &file)
-                        .await?
+                    add_node_and_dependencies(
+                        directive_definition,
+                        filter,
+                        graph,
+                        dependencies,
+                        &file,
+                    )
+                    .await?
                 }
             }
         }
@@ -333,7 +350,7 @@ mod tests {
     use async_std::task;
     use petgraph::graph::NodeIndex;
 
-    async fn scaffold(files: Vec<(PathBuf, String)>) -> Data {
+    async fn scaffold(files: Vec<(PathBuf, String)>, filters: &[GraphQL]) -> Data {
         let state = State::new();
         let shared_data = state.shared;
         let shared_data_for_populate = shared_data.clone();
@@ -349,6 +366,7 @@ mod tests {
         populate_graph_from_ast(
             shared_data_for_populate.dependencies,
             shared_data_for_populate.files,
+            filters,
             shared_data_for_populate.graph,
             shared_data_for_populate.missing_definitions,
         )
@@ -370,10 +388,13 @@ mod tests {
         let owner_name = "Owner";
         let owner_path = "some_path/Owner.graphql";
 
-        let shared_data = scaffold(vec![
-            (PathBuf::from(house_path), String::from(house_contents)),
-            (PathBuf::from(owner_path), String::from(owner_contents)),
-        ])
+        let shared_data = scaffold(
+            vec![
+                (PathBuf::from(house_path), String::from(house_contents)),
+                (PathBuf::from(owner_path), String::from(owner_contents)),
+            ],
+            &[],
+        )
         .await;
 
         let dependencies = shared_data.dependencies.lock().await;
@@ -464,10 +485,13 @@ mod tests {
 
     #[async_std::test]
     async fn check_orphans() {
-        let shared_data = scaffold(vec![(
-            PathBuf::from("some_path/Peer.gql"),
-            String::from("type Peer { id: String! }"),
-        )])
+        let shared_data = scaffold(
+            vec![(
+                PathBuf::from("some_path/Peer.gql"),
+                String::from("type Peer { id: String! }"),
+            )],
+            &[],
+        )
         .await;
 
         task::block_on(async {
@@ -481,10 +505,13 @@ mod tests {
 
     #[async_std::test]
     async fn check_orphans_with_schema() {
-        let shared_data = scaffold(vec![(
-            PathBuf::from("some_path/Schema.gql"),
-            String::from("schema { query: Query }"),
-        )])
+        let shared_data = scaffold(
+            vec![(
+                PathBuf::from("some_path/Schema.gql"),
+                String::from("schema { query: Query }"),
+            )],
+            &[],
+        )
         .await;
 
         task::block_on(async {
@@ -498,20 +525,23 @@ mod tests {
 
     #[async_std::test]
     async fn check_orphans_without_schema_but_with_query_mutation_subscription() {
-        let shared_data = scaffold(vec![
-            (
-                PathBuf::from("some_path/Query.gql"),
-                String::from("type Query { foo(bar: String): String }"),
-            ),
-            (
-                PathBuf::from("some_path/Mutation.gql"),
-                String::from("type Mutation { foo(bar: String): String }"),
-            ),
-            (
-                PathBuf::from("some_path/Subscription.gql"),
-                String::from("type Subscription { foo(bar: String): String }"),
-            ),
-        ])
+        let shared_data = scaffold(
+            vec![
+                (
+                    PathBuf::from("some_path/Query.gql"),
+                    String::from("type Query { foo(bar: String): String }"),
+                ),
+                (
+                    PathBuf::from("some_path/Mutation.gql"),
+                    String::from("type Mutation { foo(bar: String): String }"),
+                ),
+                (
+                    PathBuf::from("some_path/Subscription.gql"),
+                    String::from("type Subscription { foo(bar: String): String }"),
+                ),
+            ],
+            &[],
+        )
         .await;
 
         task::block_on(async {
@@ -525,16 +555,19 @@ mod tests {
 
     #[async_std::test]
     async fn check_neighbors() {
-        let shared_data = scaffold(vec![
-            (
-                PathBuf::from("some_path/Foo.gql"),
-                String::from("type Foo { field: Bar }"),
-            ),
-            (
-                PathBuf::from("some_path/Bar.gql"),
-                String::from("interface Bar { id: ID!}"),
-            ),
-        ])
+        let shared_data = scaffold(
+            vec![
+                (
+                    PathBuf::from("some_path/Foo.gql"),
+                    String::from("type Foo { field: Bar }"),
+                ),
+                (
+                    PathBuf::from("some_path/Bar.gql"),
+                    String::from("interface Bar { id: ID!}"),
+                ),
+            ],
+            &[],
+        )
         .await;
 
         task::block_on(async {
@@ -562,16 +595,19 @@ mod tests {
 
     #[async_std::test]
     async fn check_missing_definitions() {
-        let shared_data = scaffold(vec![
-            (
-                PathBuf::from("some_path/Foo.gql"),
-                String::from("type Foo { field: Woot, otherField: Why }"),
-            ),
-            (
-                PathBuf::from("some_path/Bar.gql"),
-                String::from("interface Bar { id: What!}"),
-            ),
-        ])
+        let shared_data = scaffold(
+            vec![
+                (
+                    PathBuf::from("some_path/Foo.gql"),
+                    String::from("type Foo { field: Woot, otherField: Why }"),
+                ),
+                (
+                    PathBuf::from("some_path/Bar.gql"),
+                    String::from("interface Bar { id: What!}"),
+                ),
+            ],
+            &[],
+        )
         .await;
 
         let graph = shared_data.graph.lock().await;
@@ -598,5 +634,42 @@ mod tests {
             vec![String::from("Why"), String::from("Woot")]
         );
         assert_eq!(*bar_missing_dependencies, vec![String::from("What")]);
+    }
+
+    #[async_std::test]
+    async fn check_filtering() {
+        let shared_data = scaffold(
+            vec![
+                (
+                    PathBuf::from("some_path/Foo.gql"),
+                    String::from("type Foo { a: ID! }"),
+                ),
+                (
+                    PathBuf::from("some_path/Bar.gql"),
+                    String::from("interface Bar { b: ID! }"),
+                ),
+                (
+                    PathBuf::from("some_path/Cow.gql"),
+                    String::from("input Cow { c: ID! }"),
+                ),
+            ],
+            &[
+                GraphQL::TypeDefinition(GraphQLType::Object),
+                GraphQL::TypeDefinition(GraphQLType::InputObject),
+            ],
+        )
+        .await;
+
+        let graph = shared_data.graph.lock().await;
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.edge_count(), 0);
+
+        let mut selected_entities = graph
+            .node_indices()
+            .map(|index| &graph.node_weight(index).unwrap().id)
+            .collect::<Vec<&String>>();
+        // Sort the entities as the order is not as there no determined insertion order.
+        selected_entities.sort();
+        assert_eq!(selected_entities, vec!["Cow", "Foo"]);
     }
 }

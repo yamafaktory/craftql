@@ -3,7 +3,7 @@ use async_std::{
     sync::{Arc, Mutex},
 };
 use petgraph::{graph::NodeIndex, Graph};
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, str::FromStr};
 
 /// Global state.
 #[derive(Debug)]
@@ -52,6 +52,30 @@ where
             GraphQL::Schema => write!(f, "Schema"),
             GraphQL::TypeDefinition(graphql_type) => write!(f, "{:?}", graphql_type),
             GraphQL::TypeExtension(graphql_type) => write!(f, "{:?} extension", graphql_type),
+        }
+    }
+}
+
+impl FromStr for GraphQL {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "directive" => Ok(GraphQL::Directive),
+            "enum" => Ok(GraphQL::TypeDefinition(GraphQLType::Enum)),
+            "enum_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Enum)),
+            "input_object" => Ok(GraphQL::TypeDefinition(GraphQLType::InputObject)),
+            "input_object_extension" => Ok(GraphQL::TypeExtension(GraphQLType::InputObject)),
+            "interface" => Ok(GraphQL::TypeDefinition(GraphQLType::Interface)),
+            "interface_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Interface)),
+            "object" => Ok(GraphQL::TypeDefinition(GraphQLType::Object)),
+            "object_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Object)),
+            "scalar" => Ok(GraphQL::TypeDefinition(GraphQLType::Scalar)),
+            "scalar_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Scalar)),
+            "schema" => Ok(GraphQL::Schema),
+            "union" => Ok(GraphQL::TypeDefinition(GraphQLType::Union)),
+            "union_extension" => Ok(GraphQL::TypeExtension(GraphQLType::Union)),
+            unknown => Err(format!(r#"Unknown GraphQL type provided "{}""#, unknown)),
         }
     }
 }

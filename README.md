@@ -1,6 +1,6 @@
 # CraftQL ![ci](https://github.com/yamafaktory/craftql/workflows/ci/badge.svg)
 
-> A CLI tool to manipulate GraphQL schemas and to output a graph data structure as a graphviz .dot format
+> A CLI tool to visualize GraphQL schemas and to output a graph data structure as a graphviz .dot format
 
 ## Installation
 
@@ -15,19 +15,52 @@ USAGE:
     craftql [FLAGS] [OPTIONS] <path>
 
 ARGS:
-    <path>    Path to get files from
+    <path>    
+            Path to get files from
 
 FLAGS:
-    -h, --help                   Prints help information
-    -m, --missing-definitions    Finds and displays missing definition(s)
-    -O, --orphans                Finds and displays orphan(s) node(s)
-    -V, --version                Prints version information
+    -h, --help                   
+            Prints help information
+
+    -m, --missing-definitions    
+            Finds and displays missing definition(s)
+
+    -O, --orphans                
+            Finds and displays orphan(s) node(s)
+
+    -V, --version                
+            Prints version information
+
 
 OPTIONS:
-    -i, --incoming-dependencies <incoming-dependencies>    Finds and displays incoming dependencies of a node
-    -n, --node <node>                                      Finds and displays one node
-    -N, --nodes <nodes>...                                 Finds and displays multiple nodes
-    -o, --outgoing-dependencies <outgoing-dependencies>    Finds and displays outgoing dependencies of a node
+    -f, --filter <filter>...                               
+            Filter nodes by GraphQL type(s)
+            
+            - directive
+            - enum
+            - enum_extension
+            - input_object
+            - input_object_extension
+            - interface
+            - interface_extension
+            - object
+            - object_extension
+            - scalar
+            - scalar_extension
+            - schema
+            - union
+            - union_extension
+    -i, --incoming-dependencies <incoming-dependencies>    
+            Finds and displays incoming dependencies of a node
+
+    -n, --node <node>                                      
+            Finds and displays one node
+
+    -N, --nodes <nodes>...                                 
+            Finds and displays multiple nodes
+
+    -o, --outgoing-dependencies <outgoing-dependencies>    
+            Finds and displays outgoing dependencies of a node
 ```
 
 ### Output a graphviz .dot format
@@ -125,6 +158,39 @@ digraph {
 ```
 
 ![graph](graph.svg)
+
+### Filter nodes by GraphQL types(s)
+
+```sh
+craftql tests/fixtures --filter object object_extension
+
+digraph {
+    0 [ label = "Orphan (Object)\l\l[ID]" ]
+    1 [ label = "Human (Object)\l\l[Character, Episode, Float, FriendsConnection, ID, Int, LengthUnit, Starship, String]" ]
+    2 [ label = "Droid (Object)\l\l[Character, Episode, FriendsConnection, ID, Int, String]" ]
+    3 [ label = "FriendsConnection (Object)\l\l[Character, FriendsEdge, Int, PageInfo]" ]
+    4 [ label = "FriendsEdge (Object)\l\l[Character, ID]" ]
+    5 [ label = "PageInfo (Object)\l\l[@test, Boolean, ID]" ]
+    6 [ label = "Review (Object)\l\l[@test, DateTime, Episode, Int, String]" ]
+    7 [ label = "Query (Object)\l\l[Character, Droid, Episode, Human, ID, Review, SearchResult, Starship, String]" ]
+    8 [ label = "Mutation (Object)\l\l[Episode, Review, ReviewInput]" ]
+    9 [ label = "Subscription (Object)\l\l[Episode, Review]" ]
+    10 [ label = "Starship (Object extension)\l\l[Boolean, Starship]" ]
+    11 [ label = "Starship (Object)\l\l[@deprecated, Float, ID, LengthUnit, String]" ]
+    4 -> 3 [ ]
+    5 -> 3 [ ]
+    10 -> 11 [ ]
+    2 -> 7 [ ]
+    1 -> 7 [ ]
+    6 -> 7 [ ]
+    11 -> 7 [ ]
+    6 -> 9 [ ]
+    3 -> 2 [ ]
+    6 -> 8 [ ]
+    3 -> 1 [ ]
+    11 -> 1 [ ]
+}
+```
 
 ### Find and display one node
 
