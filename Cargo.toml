@@ -20,13 +20,13 @@ name = "craftql"
 path = "src/bin.rs"
 
 [dependencies]
-anyhow = "1.0.32"
+anyhow = "1.0.33"
 clap = "3.0.0-beta.1"
 graphql-parser = "0.3.0"
 petgraph = "0.5.1"
 
 [dependencies.async-std]
-version = "1.6.3"
+version = "1.6.5"
 features = ["attributes", "unstable"]
 
 [profile.release]
