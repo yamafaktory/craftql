@@ -9,7 +9,7 @@ license = "MIT"
 name = "craftql"
 readme = "README.md"
 repository = "https://github.com/yamafaktory/craftql"
-version = "0.2.8-alpha.0"
+version = "0.2.8"
 
 [lib]
 name = "craftql"
