@@ -28,7 +28,7 @@ struct Opts {
     #[clap(short, long)]
     missing_definitions: bool,
     /// Finds and displays orphan(s) node(s)
-    #[clap(short = "O", long)]
+    #[clap(short = 'O', long)]
     orphans: bool,
     /// Finds and displays outgoing dependencies of a node
     #[clap(short, long)]
@@ -37,7 +37,7 @@ struct Opts {
     #[clap(short, long)]
     node: Option<String>,
     /// Finds and displays multiple nodes
-    #[clap(short = "N", long)]
+    #[clap(short = 'N', long)]
     nodes: Vec<String>,
     /// Filter nodes by GraphQL type(s)
     ///
