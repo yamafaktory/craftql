@@ -1,4 +1,6 @@
-# CraftQL ![ci](https://github.com/yamafaktory/craftql/workflows/ci/badge.svg)
+# CraftQL
+
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/yamafaktory/craftql/ci?style=for-the-badge) ![Crates.io](https://img.shields.io/crates/v/craftql?style=for-the-badge)
 
 > A CLI tool to visualize GraphQL schemas and to output a graph data structure as a graphviz .dot format
 
@@ -15,27 +17,27 @@ USAGE:
     craftql [FLAGS] [OPTIONS] <path>
 
 ARGS:
-    <path>    
+    <path>
             Path to get files from
 
 FLAGS:
-    -h, --help                   
+    -h, --help
             Prints help information
 
-    -m, --missing-definitions    
+    -m, --missing-definitions
             Finds and displays missing definition(s)
 
-    -O, --orphans                
+    -O, --orphans
             Finds and displays orphan(s) node(s)
 
-    -V, --version                
+    -V, --version
             Prints version information
 
 
 OPTIONS:
-    -f, --filter <filter>...                               
+    -f, --filter <filter>...
             Filter nodes by GraphQL type(s)
-            
+
             - directive
             - enum
             - enum_extension
@@ -50,16 +52,16 @@ OPTIONS:
             - schema
             - union
             - union_extension
-    -i, --incoming-dependencies <incoming-dependencies>    
+    -i, --incoming-dependencies <incoming-dependencies>
             Finds and displays incoming dependencies of a node
 
-    -n, --node <node>                                      
+    -n, --node <node>
             Finds and displays one node
 
-    -N, --nodes <nodes>...                                 
+    -N, --nodes <nodes>...
             Finds and displays multiple nodes
 
-    -o, --outgoing-dependencies <outgoing-dependencies>    
+    -o, --outgoing-dependencies <outgoing-dependencies>
             Finds and displays outgoing dependencies of a node
 ```
 
@@ -243,7 +245,7 @@ type Orphan {
 }
 ```
 
-### Find and display incoming dependencies of a node 
+### Find and display incoming dependencies of a node
 
 ```sh
 craftql tests/fixtures --incoming-dependencies Starship
@@ -265,7 +267,7 @@ enum LengthUnit {
 directive @deprecated(reason: String = "No longer supported") on FIELD_DEFINITION | ENUM_VALUE
 ```
 
-### Find and display outgoing dependencies of a node 
+### Find and display outgoing dependencies of a node
 
 ```sh
 craftql tests/fixtures --outgoing-dependencies Starship
