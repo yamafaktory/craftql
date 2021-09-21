@@ -145,7 +145,7 @@ where
                             object_type
                                 .implements_interfaces
                                 .iter()
-                                .map(|directive| convert_text_to_string::<T>(&directive)),
+                                .map(|directive| convert_text_to_string::<T>(directive)),
                         )
                         .collect::<Vec<String>>(),
                 )
@@ -169,7 +169,7 @@ where
                     union_type
                         .types
                         .iter()
-                        .map(|inner_type| convert_text_to_string::<T>(&inner_type))
+                        .map(|inner_type| convert_text_to_string::<T>(inner_type))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(&union_type.directives))
                         .collect::<Vec<String>>(),
@@ -284,7 +284,7 @@ where
                             object_type_extension
                                 .implements_interfaces
                                 .iter()
-                                .map(|directive| convert_text_to_string::<T>(&directive)),
+                                .map(|directive| convert_text_to_string::<T>(directive)),
                         )
                         // Add extension's source.
                         .chain(vec![String::from(object_type_extension.name.as_ref())])
@@ -316,7 +316,7 @@ where
                     union_type_extension
                         .types
                         .iter()
-                        .map(|inner_type| convert_text_to_string::<T>(&inner_type))
+                        .map(|inner_type| convert_text_to_string::<T>(inner_type))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(
                             &union_type_extension.directives,
@@ -396,9 +396,10 @@ where
             // A schema can only have a query, a mutation and a subscription.
             vec![&self.query, &self.mutation, &self.subscription]
                 .into_iter()
-                .filter_map(|field| match field {
-                    Some(field) => Some(convert_text_to_string::<T>(&field)),
-                    None => None,
+                .filter_map(|field| {
+                    field
+                        .as_ref()
+                        .map(|field| convert_text_to_string::<T>(field))
                 })
                 .collect::<Vec<String>>(),
         )
@@ -463,7 +464,7 @@ mod tests {
             assert_eq!(schema_type.get_id_and_name(), id_and_name);
             assert_eq!(schema_type.get_mapped_type(), mapped_type);
             assert_eq!(schema_type.get_raw(), raw);
-        };
+        }
 
         let document = parse_schema::<String>(contents).unwrap().to_owned();
 
