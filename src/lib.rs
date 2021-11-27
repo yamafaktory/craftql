@@ -1,4 +1,3 @@
-#![forbid(rust_2018_idioms)]
 #![warn(missing_debug_implementations, missing_docs, unreachable_pub)]
 #![deny(unsafe_code, nonstandard_style)]
 

@@ -1,9 +1,8 @@
-#![forbid(rust_2018_idioms)]
 #![deny(unsafe_code, nonstandard_style)]
 
 use anyhow::Result;
 use async_std::path::PathBuf;
-use clap::{crate_authors, crate_description, crate_version, Clap};
+use clap::{crate_authors, crate_description, crate_version, Parser};
 use craftql::{
     state::{GraphQL, State},
     utils::{
@@ -16,29 +15,36 @@ use petgraph::{
     Direction,
 };
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(author = crate_authors!(), about = crate_description!(), version = crate_version!())]
 struct Opts {
     /// Path to get files from
     path: PathBuf,
+
     /// Finds and displays incoming dependencies of a node
     #[clap(short, long)]
     incoming_dependencies: Option<String>,
+
     /// Finds and displays missing definition(s)
     #[clap(short, long)]
     missing_definitions: bool,
+
     /// Finds and displays orphan(s) node(s)
     #[clap(short = 'O', long)]
     orphans: bool,
+
     /// Finds and displays outgoing dependencies of a node
     #[clap(short, long)]
     outgoing_dependencies: Option<String>,
+
     /// Finds and displays one node
     #[clap(short, long)]
     node: Option<String>,
+
     /// Finds and displays multiple nodes
     #[clap(short = 'N', long)]
     nodes: Vec<String>,
+
     /// Filter nodes by GraphQL type(s)
     ///
     /// - directive
