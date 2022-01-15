@@ -9,7 +9,7 @@ license = "MIT"
 name = "craftql"
 readme = "README.md"
 repository = "https://github.com/yamafaktory/craftql"
-rust_version = "1.56"
+rust-version = "1.56"
 version = "0.2.12-alpha.0"
 
 [lib]
@@ -21,8 +21,8 @@ name = "craftql"
 path = "src/bin.rs"
 
 [dependencies]
-anyhow = "1.0.49"
-clap = "3.0.0-beta.5"
+anyhow = "1.0.52"
+clap = { version = "3.0.7", features = ["derive"] }
 graphql-parser = "0.4.0"
 petgraph = "0.6.0"
 

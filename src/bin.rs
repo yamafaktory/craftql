@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use async_std::path::PathBuf;
-use clap::{crate_authors, crate_description, crate_version, Parser};
+use clap::Parser;
 use craftql::{
     state::{GraphQL, State},
     utils::{
@@ -16,7 +16,7 @@ use petgraph::{
 };
 
 #[derive(Parser)]
-#[clap(author = crate_authors!(), about = crate_description!(), version = crate_version!())]
+#[clap(about, author, version)]
 struct Opts {
     /// Path to get files from
     path: PathBuf,
