@@ -112,15 +112,9 @@ where
                     get_dependencies_from_directives(&enum_type.directives)
                         .into_iter()
                         // Get values' directives.
-                        .chain(
-                            enum_type
-                                .values
-                                .iter()
-                                .map(|enum_value| {
-                                    get_dependencies_from_directives(&enum_value.directives)
-                                })
-                                .flatten(),
-                        )
+                        .chain(enum_type.values.iter().flat_map(|enum_value| {
+                            get_dependencies_from_directives(&enum_value.directives)
+                        }))
                         .collect::<Vec<String>>(),
                 )
             }
@@ -136,8 +130,7 @@ where
                     object_type
                         .fields
                         .iter()
-                        .map(|field| walk_field(field))
-                        .flatten()
+                        .flat_map(|field| walk_field(field))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(&object_type.directives))
                         // Get interfaces as dependencies.
@@ -156,8 +149,7 @@ where
                     interface_type
                         .fields
                         .iter()
-                        .map(|field| walk_field(field))
-                        .flatten()
+                        .flat_map(|field| walk_field(field))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(&interface_type.directives))
                         .collect::<Vec<String>>(),
@@ -181,8 +173,7 @@ where
                     input_object_type
                         .fields
                         .iter()
-                        .map(|input_value| walk_input_value(input_value))
-                        .flatten()
+                        .flat_map(|input_value| walk_input_value(input_value))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(
                             &input_object_type.directives,
@@ -241,15 +232,9 @@ where
                     get_dependencies_from_directives(&enum_type_extension.directives)
                         .into_iter()
                         // Get values' directives.
-                        .chain(
-                            enum_type_extension
-                                .values
-                                .iter()
-                                .map(|enum_value| {
-                                    get_dependencies_from_directives(&enum_value.directives)
-                                })
-                                .flatten(),
-                        )
+                        .chain(enum_type_extension.values.iter().flat_map(|enum_value| {
+                            get_dependencies_from_directives(&enum_value.directives)
+                        }))
                         // Add extension's source.
                         .chain(vec![convert_text_to_string::<T>(&enum_type_extension.name)])
                         .collect::<Vec<String>>(),
@@ -273,8 +258,7 @@ where
                     object_type_extension
                         .fields
                         .iter()
-                        .map(|field| walk_field(field))
-                        .flatten()
+                        .flat_map(|field| walk_field(field))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(
                             &object_type_extension.directives,
@@ -297,8 +281,7 @@ where
                     interface_type_extension
                         .fields
                         .iter()
-                        .map(|field| walk_field(field))
-                        .flatten()
+                        .flat_map(|field| walk_field(field))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(
                             &interface_type_extension.directives,
@@ -334,8 +317,7 @@ where
                     input_object_type_extension
                         .fields
                         .iter()
-                        .map(|input_value| walk_input_value(input_value))
-                        .flatten()
+                        .flat_map(|input_value| walk_input_value(input_value))
                         // Get root directives.
                         .chain(get_dependencies_from_directives(
                             &input_object_type_extension.directives,
@@ -424,8 +406,7 @@ where
         sort_and_dedupe_dependencies(
             self.arguments
                 .iter()
-                .map(|input_value| walk_input_value(input_value))
-                .flatten()
+                .flat_map(|input_value| walk_input_value(input_value))
                 .collect::<Vec<String>>(),
         )
     }
