@@ -10,7 +10,7 @@ name = "craftql"
 readme = "README.md"
 repository = "https://github.com/yamafaktory/craftql"
 rust-version = "1.56"
-version = "0.2.13"
+version = "0.2.14"
 
 [lib]
 name = "craftql"
