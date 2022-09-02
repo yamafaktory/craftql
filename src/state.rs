@@ -13,7 +13,7 @@ pub struct State {
 }
 
 /// Core GraphQL types used for definitions and extensions.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GraphQLType {
     /// Enum type.
     Enum,
@@ -30,7 +30,7 @@ pub enum GraphQLType {
 }
 
 /// Derived and simplified from graphql_parser::schema enums.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum GraphQL<T = GraphQLType> {
     /// Directive type.
     Directive,
