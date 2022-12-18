@@ -1,6 +1,6 @@
 # CraftQL
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/yamafaktory/craftql/ci?style=for-the-badge) ![Crates.io](https://img.shields.io/crates/v/craftql?style=for-the-badge)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/yamafaktory/craftql/ci.yml?branch=main&logo=github&style=flat-square) ![Crates.io](https://img.shields.io/crates/v/craftql?style=flat-square)
 
 > A CLI tool to visualize GraphQL schemas and to output a graph data structure as a graphviz .dot format
 
