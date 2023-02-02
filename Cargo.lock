@@ -282,7 +282,7 @@ dependencies = [
 
 [[package]]
 name = "craftql"
-version = "0.2.18"
+version = "0.2.19"
 dependencies = [
  "anyhow",
  "async-std",
