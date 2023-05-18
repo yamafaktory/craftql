@@ -21,10 +21,10 @@ name = "craftql"
 path = "src/bin.rs"
 
 [dependencies]
-anyhow = "1.0.68"
-clap = { version = "4.1.4", features = ["derive"] }
+anyhow = "1.0.71"
+clap = { version = "4.2.7", features = ["derive"] }
 graphql-parser = "0.4.0"
-petgraph = "0.6.2"
+petgraph = "0.6.3"
 
 [dependencies.async-std]
 version = "1.12.0"
